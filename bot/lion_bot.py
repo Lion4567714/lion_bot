@@ -7,6 +7,8 @@ from pymongo.server_api import ServerApi
 import message_processor as mp
 import sys
 
+DEBUG = False
+
 intents = discord.Intents.all()
 intents.message_content = True
 bot = commands.Bot(command_prefix='/', intents=intents)
@@ -33,12 +35,18 @@ posts = db['posts']
 
 @bot.event
 async def on_ready():
+    guilds = discord.Object(id=[976251686270144522, 307725570429550592])
+    bot.tree.copy_global_to(guild=guilds)
+    await bot.tree.sync(guild=guilds) 
+    
     print(f'Logged into discord as {bot.user}!')
+    print('Begining chat log...')
+    print('----- LOG -----')
 
 @bot.event
 async def on_message(message):
     post = mp.message_to_dict(message)
-    print(post)
+    mp.print_message(post, DEBUG)
     try:
         post_id = posts.insert_one(post)
     except pymongo.errors.OperationFailure:
@@ -52,13 +60,13 @@ async def on_message(message):
     if len(response) != 0:
         await message.channel.send(response)
 
-@bot.command()
-async def ping(ctx):
-    await ctx.send('pong') 
+@bot.tree.command(name='ping')
+async def ping(interaction: discord.Interaction):
+    await interaction.response.send_message('pong')  
 
-@bot.command()
-async def test(ctx):
-    await ctx.send("got the test") 
+@bot.tree.command(name='repeat')
+async def repeat(interaction: discord.Interaction, message: str):
+    await interaction.channel.send(message)
 
 file = open('./config/token', 'r')
 token = file.read()
