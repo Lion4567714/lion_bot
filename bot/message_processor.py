@@ -4,8 +4,11 @@ from functools import reduce
 tracked = [
     'author.global_name',
     'author.name',
+    'author.nick',
     'content',
     'channel.name',
+    'created_at',
+    'edited_at',
     'guild.id',
     'guild.name',
     'id',
@@ -43,6 +46,13 @@ def message_to_dict(message: discord.Message) -> dict:
             attr = getattr(attr, subfield)
         output[field] = attr
     return output
+
+
+def print_message(message: dict, debug: bool = False) -> None:
+    if debug:
+        print(f'{message.get("guild.id")}')
+    else:
+        print(f'{message.get("author.name")} said "{message.get("content")}" in {message.get("channel.name")}, {message.get("guild.name")} at {message.get("created_at")}')
 
 
 def get_response(message: str) -> str:
