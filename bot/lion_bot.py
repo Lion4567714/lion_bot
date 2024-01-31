@@ -23,8 +23,13 @@ tree = app_commands.CommandTree(discord_client)
 handler = logging.FileHandler(filename='./logs/lion_bot.log', encoding='utf-8', mode='w')
 
 # Guilds
-# TODO: Move guilds to a file and read them in
-guilds = [discord.Object(id=976251686270144522), discord.Object(id=307725570429550592)]
+file = open('./config/guilds', 'r')
+guild_ids = file.read().splitlines()
+file.close()
+guilds = []
+for guild in guild_ids:
+    guilds.append(discord.Object(id=guild))
+
 
 ############### MONGO #################
 file = open('./config/mongo', 'r')
@@ -50,14 +55,16 @@ posts = db['posts']
 #######################################
 
 
+############### EVENTS ################
 @discord_client.event
 async def on_ready():
     for guild in guilds:
         await tree.sync(guild=guild)
     print(f'Logged into discord as {discord_client.user}!')
 
+
 @discord_client.event
-async def on_message(message):
+async def on_message(message: discord.Message):
     post = mp.message_to_dict(message)
     print(post)
     try:
@@ -70,30 +77,51 @@ async def on_message(message):
         return
 
     response = mp.get_response(message.content)
-    if len(response) != 0:
-        await message.channel.send(response)
-        
+    if type(response) == mp.Message:
+        if len(response.content) != 0:
+            await message.channel.send(response.content)
+    elif type(response) == mp.Reaction:
+        await message.add_reaction(response.emoji)
+#######################################
+
 
 ############# COMMANDS ################
 @tree.command(name='ping', guilds=guilds)
 async def ping(interaction):
     await interaction.response.send_message('pong')
 
+
 @tree.command(name='test', guilds=guilds)
 async def test(interaction):
     await interaction.response.send_message('Go fuck yourself')
 
-# @tree.command(name='disconnect', guilds=guilds)
-# async def disconnect(interaction: discord.Interaction, member: discord.Member):
-#     voice_state = member.voice
 
-#     if voice_state is None:
-#         # Exiting if the user is not in a voice channel
-#         return await interaction.response.send_message('Hey dumbass, you have to be in voice to get disconnected.\nTry thinking a little bit before using random commands, okay?')
-#     else:
-#         await member.move_to(None)
+@tree.command(name='disconnect', guilds=guilds)
+async def disconnect(interaction: discord.Interaction, member: discord.Member):
+    voice_state = member.voice
 
+    if voice_state is None:
+        return await interaction.response.send_message('Hey dumbass, the target has to be in voice to get disconnected.\nTry thinking a little bit before using random commands, okay?')
+
+    await member.move_to(None)
+
+
+@tree.command(name='debug', guilds=guilds)
+async def debug(interaction: discord.Interaction, setting: str):
+    match setting:
+        case 'clear commands':
+            tree.clear_commands(guild=interaction.guild)
+            await interaction.response.send_message('Cleared commands!')
+        case _:
+            await interaction.response.send_message(f'"{setting}" is an invalid setting!')
 #######################################
+
+
+async def read_terminal():
+    print("im running")
+    while(True):
+        text = input()
+        print(text)
 
 
 # Final initialization

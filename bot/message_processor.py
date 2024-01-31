@@ -1,5 +1,22 @@
 import discord
-from functools import reduce
+
+
+class Response: pass
+
+
+class Message(Response):
+    content: str
+
+    def __init__(self, content: str):
+        self.content = content
+
+
+class Reaction(Response):
+    emoji: str
+
+    def __init__(self, emoji: str):
+        self.emoji = emoji
+
 
 tracked = [
     'author.global_name',
@@ -55,11 +72,17 @@ def print_message(message: dict, debug: bool = False) -> None:
         print(f'{message.get("author.name")} said "{message.get("content")}" in {message.get("channel.name")}, {message.get("guild.name")} at {message.get("created_at")}')
 
 
-def get_response(message: str) -> str:
+def get_response(message: str) -> Response:
     m = message.lower()
     punc = ['.', ',']
     for p in punc:
         m = m.replace(p, "")
 
     r = responses.get(m, "")
-    return r
+    if r != "":
+        return Message(r)
+
+    if m == 'fuck':
+        return Reaction(":steve:878791519111356417")
+    
+    return Message("")
