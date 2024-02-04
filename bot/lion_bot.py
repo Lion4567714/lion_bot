@@ -30,6 +30,9 @@ guilds = []
 for guild in guild_ids:
     guilds.append(discord.Object(id=guild))
 
+# Bot stuff
+mp_instance = mp.MessageProcessor()
+
 
 ############### MONGO #################
 file = open('./config/mongo', 'r')
@@ -55,18 +58,34 @@ posts = db['posts']
 #######################################
 
 
+async def read_terminal():
+    print("im running")
+    while(True):
+        text = input()
+        print(text)
+
+
+# Final initialization
+file = open('./config/token', 'r')
+token = file.read()
+file.close()
+
+discord_client.run(token, log_handler=handler, log_level=logging.INFO)
+
+
 ############### EVENTS ################
 @discord_client.event
 async def on_ready():
     for guild in guilds:
         await tree.sync(guild=guild)
     print(f'Logged into discord as {discord_client.user}!')
+    print("----- BEGIN LOG -----")
 
 
 @discord_client.event
 async def on_message(message: discord.Message):
-    post = mp.message_to_dict(message)
-    print(post)
+    post = mp_instance.message_to_dict(message)
+
     try:
         post_id = posts.insert_one(post)
     except pymongo.errors.OperationFailure:
@@ -76,7 +95,7 @@ async def on_message(message: discord.Message):
     if message.author == discord_client.user:
         return
 
-    response = mp.get_response(message.content)
+    response = mp_instance.process_message(message, 1)
     if type(response) == mp.Message:
         if len(response.content) != 0:
             await message.channel.send(response.content)
@@ -115,18 +134,3 @@ async def debug(interaction: discord.Interaction, setting: str):
         case _:
             await interaction.response.send_message(f'"{setting}" is an invalid setting!')
 #######################################
-
-
-async def read_terminal():
-    print("im running")
-    while(True):
-        text = input()
-        print(text)
-
-
-# Final initialization
-file = open('./config/token', 'r')
-token = file.read()
-file.close()
-
-discord_client.run(token, log_handler=handler, log_level=logging.INFO)

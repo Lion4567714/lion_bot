@@ -2,6 +2,7 @@
 config/*
 log/*
 .vscode
+bot/messaging
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

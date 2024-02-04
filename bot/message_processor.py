@@ -1,7 +1,13 @@
 import discord
+import datetime as dt
+import pytz
 
 
 class Response: pass
+
+
+class Silent(Response):
+    pass
 
 
 class Message(Response):
@@ -54,35 +60,58 @@ responses = {
 }
 
 
-def message_to_dict(message: discord.Message) -> dict:
-    output = {}
-    for field in tracked:
-        attr = message
-        # Break attributes of attributes down one at a time
-        for subfield in field.split('.'):
-            attr = getattr(attr, subfield)
-        output[field] = attr
-    return output
+class MessageProcessor:
+    bad_words = []
 
 
-def print_message(message: dict, debug: bool = False) -> None:
-    if debug:
-        print(f'{message.get("guild.id")}')
-    else:
-        print(f'{message.get("author.name")} said "{message.get("content")}" in {message.get("channel.name")}, {message.get("guild.name")} at {message.get("created_at")}')
+    def __init__(self):
+        file = open('./bot/messaging/words', 'r')
+        bad_words = file.read().splitlines()
+        file.close()
 
 
-def get_response(message: str) -> Response:
-    m = message.lower()
-    punc = ['.', ',']
-    for p in punc:
-        m = m.replace(p, "")
+    def process_message(self, message: discord.Message, debug_level: int = 0) -> Response:
+        message_dict = self.message_to_dict(message)
+        self.print_message(message_dict, debug_level)
 
-    r = responses.get(m, "")
-    if r != "":
-        return Message(r)
+        return Silent()
 
-    if m == 'fuck':
-        return Reaction(":steve:878791519111356417")
-    
-    return Message("")
+
+    def message_to_dict(self, message: discord.Message) -> dict:
+        output = {}
+        for field in tracked:
+            attr = message
+            # Break attributes of attributes down one at a time
+            for subfield in field.split('.'):
+                attr = getattr(attr, subfield)
+            output[field] = attr
+        return output
+
+
+    def print_message(self, message: dict, debug_level: int) -> None:
+        d: dt.datetime = message['created_at']
+        d = d.now(pytz.timezone('US/Eastern'))
+        time_format = '%H:%M:%S'
+        
+        name = message['author.nick'] if message['author.nick'] != None else message['author.global_name']
+
+        match debug_level:
+            case 0: pass
+            case 1: print(f"[{d.strftime(time_format)}]: {name} said \"{message['content']}\" " + 
+                          f"in {message['channel.name']}, {message['guild.name']}")
+        
+
+    def get_response(self, message: str) -> Response:
+        m = message.lower()
+        punc = ['.', ',']
+        for p in punc:
+            m = m.replace(p, "")
+
+        r = responses.get(m, "")
+        if r != "":
+            return Message(r)
+
+        if m == 'fuck':
+            return Reaction(":steve:878791519111356417")
+        
+        return Message("")
