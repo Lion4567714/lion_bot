@@ -3,6 +3,7 @@ import datetime as dt
 import pytz
 
 
+########### RESPONSE TYPES ############
 class Response: pass
 
 
@@ -22,6 +23,7 @@ class Reaction(Response):
 
     def __init__(self, emoji: str):
         self.emoji = emoji
+#######################################
 
 
 tracked = [
@@ -61,20 +63,27 @@ responses = {
 
 
 class MessageProcessor:
-    bad_words = []
+    emojis = {}
 
 
     def __init__(self):
-        file = open('./bot/messaging/words', 'r')
-        bad_words = file.read().splitlines()
+        self.read_responses()
+
+
+    def read_responses(self) -> None:
+        file = open('./bot/messaging/emojis', 'r')
+        for line in file.read().splitlines():
+            first = line.find(':') + 1
+            second = line.find(':', first + 1)
+            self.emojis[line[first:second]] = line
         file.close()
 
 
     def process_message(self, message: discord.Message, debug_level: int = 0) -> Response:
         message_dict = self.message_to_dict(message)
         self.print_message(message_dict, debug_level)
-
-        return Silent()
+        response = self.get_response(message_dict)
+        return response
 
 
     def message_to_dict(self, message: discord.Message) -> dict:
@@ -101,17 +110,14 @@ class MessageProcessor:
                           f"in {message['channel.name']}, {message['guild.name']}")
         
 
-    def get_response(self, message: str) -> Response:
-        m = message.lower()
-        punc = ['.', ',']
+    def get_response(self, message: dict) -> Response:
+        content = str(message['content'])
+        clean_message = content.lower()
+        punc = ['.', ',']       
         for p in punc:
-            m = m.replace(p, "")
+            clean_message = clean_message.replace(p, "")
 
-        r = responses.get(m, "")
-        if r != "":
-            return Message(r)
-
-        if m == 'fuck':
-            return Reaction(":steve:878791519111356417")
+        if message['author.name'] == 'brownagedon':
+            return Reaction(self.emojis['steve'])
         
-        return Message("")
+        return Silent()

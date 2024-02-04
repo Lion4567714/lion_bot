@@ -4,12 +4,18 @@ from discord import app_commands
 import logging
 
 import pymongo
+import pymongo.errors
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 
 import sys
-import urllib
+import urllib.parse
+
 import message_processor as mp
+
+from random import random
+
+import time
 #######################################
 
 
@@ -47,7 +53,6 @@ mongo_client = MongoClient(uri, server_api=ServerApi('1'))
 
 try:
     mongo_client.admin.command('ping')
-    # logging.info()
     print("Ping successful. Connected to MongoDB!")
 except Exception as e:
     print("Ping unsuccessful. Connected to MongoDB failed!")
@@ -56,21 +61,6 @@ except Exception as e:
 db = mongo_client.my_database
 posts = db['posts']
 #######################################
-
-
-async def read_terminal():
-    print("im running")
-    while(True):
-        text = input()
-        print(text)
-
-
-# Final initialization
-file = open('./config/token', 'r')
-token = file.read()
-file.close()
-
-discord_client.run(token, log_handler=handler, log_level=logging.INFO)
 
 
 ############### EVENTS ################
@@ -87,7 +77,7 @@ async def on_message(message: discord.Message):
     post = mp_instance.message_to_dict(message)
 
     try:
-        post_id = posts.insert_one(post)
+        posts.insert_one(post)
     except pymongo.errors.OperationFailure:
         logging.error("Something went wrong with sending a message to MongoDB!")
         sys.exit(1)
@@ -95,12 +85,17 @@ async def on_message(message: discord.Message):
     if message.author == discord_client.user:
         return
 
+    if random() > 0.98:
+        await message.channel.send("dumbass")
+
     response = mp_instance.process_message(message, 1)
-    if type(response) == mp.Message:
-        if len(response.content) != 0:
+    match response:
+        case mp.Silent:
+            pass
+        case mp.Message():
             await message.channel.send(response.content)
-    elif type(response) == mp.Reaction:
-        await message.add_reaction(response.emoji)
+        case mp.Reaction():
+            await message.add_reaction(response.emoji)
 #######################################
 
 
@@ -111,18 +106,41 @@ async def ping(interaction):
 
 
 @tree.command(name='test', guilds=guilds)
-async def test(interaction):
-    await interaction.response.send_message('Go fuck yourself')
+async def test(interaction: discord.Interaction):
+    print(interaction)
+    print(interaction.message)
+    await interaction.response.send_message('Go fuck yourself', ephemeral=True)
 
 
 @tree.command(name='disconnect', guilds=guilds)
 async def disconnect(interaction: discord.Interaction, member: discord.Member):
+    print(interaction)
+    print(interaction.message)
+
+    if interaction.message != None:
+        print('it worked')
+        print(interaction.message)
+        print(interaction.message.author)
+        print(interaction.message.author.id)
+    
+
+    print(member.id)
+    # brown id = 308437138855428117
+    # lion id = 307723444428996608
+
     voice_state = member.voice
 
     if voice_state is None:
         return await interaction.response.send_message('Hey dumbass, the target has to be in voice to get disconnected.\nTry thinking a little bit before using random commands, okay?')
 
     await member.move_to(None)
+    await interaction.response.send_message("done!", ephemeral=True)
+
+
+# @tree.command(name='timer', guilds=guilds)
+# async def timer(interaction: discord.Interaction, delay: int):
+#     time.sleep(delay)
+#     await interaction.response.send_message("Timer's up!")
 
 
 @tree.command(name='debug', guilds=guilds)
@@ -134,3 +152,11 @@ async def debug(interaction: discord.Interaction, setting: str):
         case _:
             await interaction.response.send_message(f'"{setting}" is an invalid setting!')
 #######################################
+
+
+# Final initialization
+file = open('./config/token', 'r')
+token = file.read()
+file.close()
+
+discord_client.run(token, log_handler=handler, log_level=logging.INFO)
