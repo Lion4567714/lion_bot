@@ -1,7 +1,9 @@
 ############### IMPORTS ###############
 import discord
+from discord.ext import commands
 from discord import app_commands
 import logging
+from jinja2 import pass_context
 
 import pymongo
 import pymongo.errors
@@ -22,8 +24,9 @@ import time
 # Discord Client
 intents = discord.Intents.all()
 intents.message_content = True
-discord_client = discord.Client(intents=intents)
-tree = app_commands.CommandTree(discord_client)
+# discord_client = discord.Client(intents=intents)
+bot = commands.Bot(command_prefix='/', intents=intents)
+# tree = app_commands.CommandTree(discord_client)
 
 # Logging
 handler = logging.FileHandler(filename='./logs/lion_bot.log', encoding='utf-8', mode='w')
@@ -64,15 +67,15 @@ posts = db['posts']
 
 
 ############### EVENTS ################
-@discord_client.event
+@bot.event
 async def on_ready():
     for guild in guilds:
-        await tree.sync(guild=guild)
-    print(f'Logged into discord as {discord_client.user}!')
+        await bot.tree.sync(guild=guild)
+    print(f'Logged into discord as {bot.user}!')
     print("----- BEGIN LOG -----")
 
 
-@discord_client.event
+@bot.event
 async def on_message(message: discord.Message):
     post = mp_instance.message_to_dict(message)
 
@@ -82,7 +85,7 @@ async def on_message(message: discord.Message):
         logging.error("Something went wrong with sending a message to MongoDB!")
         sys.exit(1)
 
-    if message.author == discord_client.user:
+    if message.author == bot.user:
         return
 
     if random() > 0.98:
@@ -100,28 +103,43 @@ async def on_message(message: discord.Message):
 
 
 ############# COMMANDS ################
-@tree.command(name='ping', guilds=guilds)
-async def ping(interaction):
-    await interaction.response.send_message('pong')
+# @bot.command(guild=discord.Object['id'=976251686270144522])
+# async def sync(ctx):
+#     if ctx.author.id == 307723444428996608:
+#         await bot.tree.sync()
+            
+
+@bot.tree.command(guilds=guilds)
+async def test1(ctx):
+    print(ctx)
+    test: commands.Context = ctx
+    print(test)
+    print(test.author)
+    await ctx.send("FUUUUUUCK")
 
 
-@tree.command(name='test', guilds=guilds)
-async def test(interaction: discord.Interaction):
-    print(interaction)
-    print(interaction.message)
-    await interaction.response.send_message('Go fuck yourself', ephemeral=True)
+@bot.tree.command(name='ping', guilds=guilds)
+async def ping(ctx):
+    await ctx.response.send_message('pong')
 
 
-@tree.command(name='disconnect', guilds=guilds)
-async def disconnect(interaction: discord.Interaction, member: discord.Member):
-    print(interaction)
-    print(interaction.message)
+@bot.tree.command(name='test', guilds=guilds)
+async def test(ctx):
+    print(ctx)
+    print(ctx.message)
+    await ctx.response.send_message('Go fuck yourself', ephemeral=True)
 
-    if interaction.message != None:
+
+@bot.tree.command(name='disconnect', guilds=guilds)
+async def disconnect(ctx: discord.Interaction, member: discord.Member):
+    # print(ctx.author)
+    print(ctx.message)
+
+    if ctx.message != None:
         print('it worked')
-        print(interaction.message)
-        print(interaction.message.author)
-        print(interaction.message.author.id)
+        print(ctx.message)
+        print(ctx.message.author)
+        print(ctx.message.author.id)
     
 
     print(member.id)
@@ -131,10 +149,10 @@ async def disconnect(interaction: discord.Interaction, member: discord.Member):
     voice_state = member.voice
 
     if voice_state is None:
-        return await interaction.response.send_message('Hey dumbass, the target has to be in voice to get disconnected.\nTry thinking a little bit before using random commands, okay?')
+        return await ctx.response.send_message('Hey dumbass, the target has to be in voice to get disconnected.\nTry thinking a little bit before using random commands, okay?')
 
     await member.move_to(None)
-    await interaction.response.send_message("done!", ephemeral=True)
+    await ctx.response.send_message("done!", ephemeral=True)
 
 
 # @tree.command(name='timer', guilds=guilds)
@@ -143,14 +161,14 @@ async def disconnect(interaction: discord.Interaction, member: discord.Member):
 #     await interaction.response.send_message("Timer's up!")
 
 
-@tree.command(name='debug', guilds=guilds)
-async def debug(interaction: discord.Interaction, setting: str):
-    match setting:
-        case 'clear commands':
-            tree.clear_commands(guild=interaction.guild)
-            await interaction.response.send_message('Cleared commands!')
-        case _:
-            await interaction.response.send_message(f'"{setting}" is an invalid setting!')
+# @tree.command(name='debug', guilds=guilds)
+# async def debug(interaction: discord.Interaction, setting: str):
+#     match setting:
+#         case 'clear commands':
+#             tree.clear_commands(guild=interaction.guild)
+#             await interaction.response.send_message('Cleared commands!')
+#         case _:
+#             await interaction.response.send_message(f'"{setting}" is an invalid setting!')
 #######################################
 
 
@@ -159,4 +177,4 @@ file = open('./config/token', 'r')
 token = file.read()
 file.close()
 
-discord_client.run(token, log_handler=handler, log_level=logging.INFO)
+bot.run(token, log_handler=handler, log_level=logging.INFO)
