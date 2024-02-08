@@ -124,6 +124,8 @@ async def on_message(message: discord.Message):
 async def on_voice_state_update(member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
     if before.channel == None and after.channel != None:
         print(f'{member} joined voice!')
+        user = await bot.fetch_user(307723444428996608)
+        await user.send(f'{member} joined voice!')
     elif before.channel != None and after.channel == None:
         print(f'{member} left voice!')
 #######################################
