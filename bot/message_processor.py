@@ -1,4 +1,5 @@
 import discord
+import sys
 import datetime as dt
 import pytz
 
@@ -16,6 +17,9 @@ class Message(Response):
 
     def __init__(self, content: str):
         self.content = content
+
+
+class Reply(Message): pass
 
 
 class Reaction(Response):
@@ -71,12 +75,20 @@ class MessageProcessor:
 
 
     def read_responses(self) -> None:
-        file = open('./bot/messaging/emojis', 'r')
-        for line in file.read().splitlines():
-            first = line.find(':') + 1
-            second = line.find(':', first + 1)
-            self.emojis[line[first:second]] = line
-        file.close()
+        try:
+            file = open('./bot/messaging/emojis', 'r')
+            for line in file.read().splitlines():
+                first = line.find(':') + 1
+                second = line.find(':', first + 1)
+                self.emojis[line[first:second]] = line
+            file.close()
+        except Exception as e:
+            print("""
+[ERROR]
+Something went wrong when trying to read ./bot/messaging/emojis!
+Make sure the file exists and contains properly formatted emojis.
+                  """)
+            sys.exit()
 
 
     def process_message(self, message: discord.Message, debug_level: int = 0) -> Response:
@@ -119,5 +131,8 @@ class MessageProcessor:
 
         if message['author.name'] == 'brownagedon':
             return Reaction(self.emojis['steve'])
+        
+        # if message['author.name'] == 'theoriginaltriggered':
+            # return Reply('Have you given bug his plat yet? <:jazz:347262765062291458>')
         
         return Silent()

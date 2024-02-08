@@ -1,9 +1,7 @@
 ############### IMPORTS ###############
 import discord
 from discord.ext import commands
-from discord import app_commands
 import logging
-from jinja2 import pass_context
 
 import pymongo
 import pymongo.errors
@@ -16,8 +14,6 @@ import urllib.parse
 import message_processor as mp
 
 from random import random
-
-import time
 #######################################
 
 
@@ -32,9 +28,17 @@ bot = commands.Bot(command_prefix='/', intents=intents)
 handler = logging.FileHandler(filename='./logs/lion_bot.log', encoding='utf-8', mode='w')
 
 # Guilds
-file = open('./config/guilds', 'r')
-guild_ids = file.read().splitlines()
-file.close()
+try:
+    file = open('./config/guilds', 'r')
+    guild_ids = file.read().splitlines()
+    file.close()
+except Exception as e:
+    print("""
+[ERROR]
+Something went wrong when trying to read ./config/guilds!
+Make sure the file exists and contains guilds ids separated by newlines.
+    """)
+    sys.exit()
 guilds = []
 for guild in guild_ids:
     guilds.append(discord.Object(id=guild))
@@ -44,9 +48,17 @@ mp_instance = mp.MessageProcessor()
 
 
 ############### MONGO #################
-file = open('./config/mongo', 'r')
-mongo = file.read().splitlines()
-file.close()
+try:
+    file = open('./config/mongo', 'r')
+    mongo = file.read().splitlines()
+    file.close()
+except Exception as e:
+    print("""
+[ERROR]
+Something went wrong when trying to read ./config/mongo!
+Make sure the file exists and contains your mongo username and password.
+          """)
+    sys.exit()
 
 mongo_user = urllib.parse.quote(mongo[0])
 mongo_pass = urllib.parse.quote(mongo[1])
@@ -54,12 +66,14 @@ mongo_pass = urllib.parse.quote(mongo[1])
 uri = f"mongodb+srv://{mongo_user}:{mongo_pass}@discordcluster.ujcowjs.mongodb.net/?retryWrites=true&w=majority"
 mongo_client = MongoClient(uri, server_api=ServerApi('1'))
 
+connected_to_mongo = False
 try:
     mongo_client.admin.command('ping')
+    connected_to_mongo = True
     print("Ping successful. Connected to MongoDB!")
 except Exception as e:
-    print("Ping unsuccessful. Connected to MongoDB failed!")
-    print(e)
+    print("Ping unsuccessful. Continuing without MongoDB...")
+    # print(e)
 
 db = mongo_client.my_database
 posts = db['posts']
@@ -79,26 +93,39 @@ async def on_ready():
 async def on_message(message: discord.Message):
     post = mp_instance.message_to_dict(message)
 
-    try:
-        posts.insert_one(post)
-    except pymongo.errors.OperationFailure:
-        logging.error("Something went wrong with sending a message to MongoDB!")
-        sys.exit(1)
+    if connected_to_mongo:
+        try:
+            posts.insert_one(post)
+        except pymongo.errors.OperationFailure:
+                logging.error("Something went wrong with sending a message to MongoDB!")
 
     if message.author == bot.user:
         return
 
     if random() > 0.98:
-        await message.channel.send("dumbass")
+        if random() > 0.5:
+            await message.channel.send('shut up')
+        else:
+            await message.channel.send('dumbass')
 
     response = mp_instance.process_message(message, 1)
     match response:
         case mp.Silent:
             pass
+        case mp.Reply():
+            await message.channel.send(response.content, reference=message)
         case mp.Message():
             await message.channel.send(response.content)
         case mp.Reaction():
             await message.add_reaction(response.emoji)
+
+
+@bot.event
+async def on_voice_state_update(member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
+    if before.channel == None and after.channel != None:
+        print(f'{member} joined voice!')
+    elif before.channel != None and after.channel == None:
+        print(f'{member} left voice!')
 #######################################
 
 
