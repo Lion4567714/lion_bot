@@ -2,6 +2,7 @@ import discord
 import sys
 import datetime as dt
 import pytz
+import random
 
 
 ########### RESPONSE TYPES ############
@@ -67,6 +68,8 @@ responses = {
 
 
 class MessageProcessor:
+    history = [] * 10
+    activity = {}
     emojis = {}
 
 
@@ -109,6 +112,11 @@ Make sure the file exists and contains properly formatted emojis.
         return output
 
 
+    def log_activity(self, message: dict) -> None:
+        value = self.activity.setdefault(message['author.name'], 0)
+        self.activity[message['author.name']] += 1
+
+
     def print_message(self, message: dict, debug_level: int) -> None:
         d: dt.datetime = message['created_at']
         d = d.now(pytz.timezone('US/Eastern'))
@@ -129,8 +137,32 @@ Make sure the file exists and contains properly formatted emojis.
         for p in punc:
             clean_message = clean_message.replace(p, "")
 
-        if message['author.name'] == 'brownagedon':
-            return Reaction(self.emojis['steve'])
+        # Add to and check history for repeated messages
+        is_same = True
+        for i in range(len(self.history) - 1):
+            if self.history[i] != content:
+                is_same = False
+
+            self.history[i] = self.history[i + 1]
+
+        self.history[len(self.history) - 1] = content
+
+        if is_same:
+            self.history = [] * 10
+            return Message('https://tenor.com/view/shrek-stop-talking-five-minutes-be-yourself-please-gif-13730564')
+        # End history things
+
+        if content.find('<@1199041303221121025>') != -1:
+            match random.randint(0, 2):
+                case 0:
+                    return Message('<' + self.emojis['bruh'] + '>')
+                case 1:
+                    return Message('<' + self.emojis['steve'] + '>')
+                case 2:
+                    return Message('<' + self.emojis['alt254'] + '>')
+
+        # if message['author.name'] == 'brownagedon':
+        #     return Reaction(self.emojis['steve'])
         
         # if message['author.name'] == 'theoriginaltriggered':
             # return Reply('Have you given bug his plat yet? <:jazz:347262765062291458>')

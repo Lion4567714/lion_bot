@@ -1,0 +1,40 @@
+[2024-02-13 17:47:08] [INFO    ] discord.client: logging in using static token
+[2024-02-13 17:47:09] [INFO    ] discord.gateway: Shard ID None has connected to Gateway (Session ID: d3947bc9ea2fec7de9aba99b9a5037ff).
+[2024-02-13 17:47:11] [ERROR   ] discord.client: Ignoring exception in on_message
+Traceback (most recent call last):
+  File "/home/lion/.local/lib/python3.10/site-packages/discord/client.py", line 441, in _run_event
+    await coro(*args, **kwargs)
+  File "/home/lion/lion_bot/./bot/lion_bot.py", line 157, in on_message
+    post = mp_instance.message_to_dict(message)
+  File "/home/lion/lion_bot/bot/message_processor.py", line 110, in message_to_dict
+    attr = getattr(attr, subfield)
+AttributeError: 'ClientUser' object has no attribute 'nick'
+[2024-02-13 17:47:11] [ERROR   ] discord.app_commands.tree: Ignoring exception in command 'daily'
+Traceback (most recent call last):
+  File "/home/lion/.local/lib/python3.10/site-packages/discord/app_commands/commands.py", line 828, in _do_call
+    return await self._callback(interaction, **params)  # type: ignore
+  File "/home/lion/lion_bot/./bot/lion_bot.py", line 238, in daily
+    if cooldown_over:
+UnboundLocalError: local variable 'cooldown_over' referenced before assignment
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/lion/.local/lib/python3.10/site-packages/discord/app_commands/tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "/home/lion/.local/lib/python3.10/site-packages/discord/app_commands/commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+  File "/home/lion/.local/lib/python3.10/site-packages/discord/app_commands/commands.py", line 846, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'daily' raised an exception: UnboundLocalError: local variable 'cooldown_over' referenced before assignment
+[2024-02-13 17:47:14] [ERROR   ] discord.client: Ignoring exception in on_message
+Traceback (most recent call last):
+  File "/home/lion/.local/lib/python3.10/site-packages/discord/client.py", line 441, in _run_event
+    await coro(*args, **kwargs)
+  File "/home/lion/lion_bot/./bot/lion_bot.py", line 175, in on_message
+    response = mp_instance.process_message(message, 1)
+  File "/home/lion/lion_bot/bot/message_processor.py", line 100, in process_message
+    response = self.get_response(message_dict)
+  File "/home/lion/lion_bot/bot/message_processor.py", line 148, in get_response
+    self.history[len(self.history) - 1] = content
+IndexError: list assignment index out of range
