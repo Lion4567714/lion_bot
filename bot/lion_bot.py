@@ -173,15 +173,14 @@ async def on_message(message: discord.Message):
             await message.channel.send('dumbass')
 
     response = mp_instance.process_message(message, 1)
-    match response:
-        case mp.Silent:
-            pass
-        case mp.Reply():
-            await message.channel.send(response.content, reference=message)
-        case mp.Message():
-            await message.channel.send(response.content)
-        case mp.Reaction():
-            await message.add_reaction(response.emoji)
+    if isinstance(response, mp.Silent):
+        pass
+    elif isinstance(response, mp.Reply):
+        await message.channel.send(response.content, reference=message)
+    elif isinstance(response, mp.Message):
+        await message.channel.send(response.content)
+    elif isinstance(response, mp.Reaction):
+        await message.add_reaction(response.emoji)
 
 
 @bot.event
@@ -295,30 +294,29 @@ async def debug(ctx: discord.Interaction, setting: str, arg0: str = ""):
         await ctx.response.send_message('You are not permitted to use this command! (i.e., go fuck yourself)')
         return
 
-    match setting:
-        case 'add roles':
-            if ctx.guild is None:
-                print('add roles failed!')
-                return
-            
-            role_name = arg0
-            role = get(ctx.guild.roles, name=role_name)
-            if role is None:
-                print('couldnt find role!')
-                return
+    if setting == 'add roles':
+        if ctx.guild is None:
+            print('add roles failed!')
+            return
+        
+        role_name = arg0
+        role = get(ctx.guild.roles, name=role_name)
+        if role is None:
+            print('couldnt find role!')
+            return
 
-            for member in ctx.guild.members:
-                roles = member.roles
-                has_role = False
-                for irole in roles:
-                    if irole.name == role_name:
-                        has_role = True
-                        break
+        for member in ctx.guild.members:
+            roles = member.roles
+            has_role = False
+            for irole in roles:
+                if irole.name == role_name:
+                    has_role = True
+                    break
 
-                if not has_role:
-                    await member.add_roles(role)
-        case _:
-            await ctx.response.send_message(f'"{setting}" is an invalid subcommand!')
+            if not has_role:
+                await member.add_roles(role)
+    else:
+        await ctx.response.send_message(f'"{setting}" is an invalid subcommand!')
 
 
 @bot.tree.command(name='test1', guilds=guilds)

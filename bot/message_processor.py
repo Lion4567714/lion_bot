@@ -124,10 +124,11 @@ Make sure the file exists and contains properly formatted emojis.
         
         name = message['author.nick'] if message['author.nick'] != None else message['author.global_name']
 
-        match debug_level:
-            case 0: pass
-            case 1: print(f"[{d.strftime(time_format)}]: {name} said \"{message['content']}\" " + 
-                          f"in {message['channel.name']}, {message['guild.name']}")
+        if debug_level == 0:
+            pass
+        elif debug_level == 1:
+            print(f"[{d.strftime(time_format)}]: {name} said \"{message['content']}\" " + 
+                f"in {message['channel.name']}, {message['guild.name']}")
         
 
     def get_response(self, message: dict) -> Response:
@@ -153,13 +154,13 @@ Make sure the file exists and contains properly formatted emojis.
         # End history things
 
         if content.find('<@1199041303221121025>') != -1:
-            match random.randint(0, 2):
-                case 0:
-                    return Message('<' + self.emojis['bruh'] + '>')
-                case 1:
-                    return Message('<' + self.emojis['steve'] + '>')
-                case 2:
-                    return Message('<' + self.emojis['alt254'] + '>')
+            rand = random.randint(0, 2)
+            if rand == 0:
+                return Message('<' + self.emojis['bruh'] + '>')
+            elif rand == 1:
+                return Message('<' + self.emojis['steve'] + '>')
+            elif rand == 2:
+                return Message('<' + self.emojis['alt254'] + '>')
 
         # if message['author.name'] == 'brownagedon':
         #     return Reaction(self.emojis['steve'])
