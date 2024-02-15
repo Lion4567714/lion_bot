@@ -24,6 +24,7 @@ from random import randint
 import signal
 import ast
 import datetime as dt
+import pytz
 #######################################
 
 
@@ -198,7 +199,7 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
 
 
 ############# COMMANDS ################
-@bot.tree.command(name='daily', guilds=guilds)
+@bot.tree.command(name='daily', description='Gambling! 100 is the winning score', guilds=guilds)
 async def daily(ctx: discord.Interaction): 
     m_id = ctx.user.id
 
@@ -282,7 +283,7 @@ async def daily(ctx: discord.Interaction):
             await ctx.channel.send('Skill issue <@' + str(m_id) + '>')
             
 
-@bot.tree.command(name='debug', guilds=guilds)
+@bot.tree.command(name='debug', description='May only be used by the bot\'s owner', guilds=guilds)
 async def debug(ctx: discord.Interaction, setting: str, arg0: str = ""):
     if ctx.message is None:
         print('cant find message!')
@@ -317,33 +318,33 @@ async def debug(ctx: discord.Interaction, setting: str, arg0: str = ""):
         await ctx.response.send_message(f'"{setting}" is an invalid subcommand!')
 
 
-@bot.tree.command(name='test1', guilds=guilds)
-async def test1(ctx: discord.Interaction):
-    if isinstance(ctx.user, discord.User):
-        print('[ERROR] Found discord.User type where discord.Member type was needed!')
-        return
+# @bot.tree.command(name='test1', guilds=guilds)
+# async def test1(ctx: discord.Interaction):
+#     if isinstance(ctx.user, discord.User):
+#         print('[ERROR] Found discord.User type where discord.Member type was needed!')
+#         return
 
-    member: discord.Member = ctx.user
+#     member: discord.Member = ctx.user
 
-    role = get(member.guild.roles, name='[TEST]')
-    if not isinstance(role, discord.Role):
-        print('[ERROR] Role not found!')
-        return
+#     role = get(member.guild.roles, name='[TEST]')
+#     if not isinstance(role, discord.Role):
+#         print('[ERROR] Role not found!')
+#         return
 
-    await member.add_roles(role)
-
-
-@bot.tree.command(name='ping', guilds=guilds)
-async def ping(ctx):
-    await ctx.response.send_message('pong')
+#     await member.add_roles(role)
 
 
-@bot.tree.command(name='test', guilds=guilds)
-async def test(ctx):
-    await ctx.response.send_message('https://tenor.com/view/shrek-stop-talking-five-minutes-be-yourself-please-gif-13730564', ephemeral=True)
+@bot.tree.command(name='ping', description='Checks the response time of the bot\'s server', guilds=guilds)
+async def ping(ctx: discord.Interaction):
+    await ctx.response.send_message(f'pong! *({int(bot.latency * 1000)}ms)*')
 
 
-@bot.tree.command(name='disconnect', guilds=guilds)
+# @bot.tree.command(name='test', guilds=guilds)
+# async def test(ctx):
+#     await ctx.response.send_message('https://tenor.com/view/shrek-stop-talking-five-minutes-be-yourself-please-gif-13730564', ephemeral=True)
+
+
+@bot.tree.command(name='disconnect', description='Disconnects the specified user from voice', guilds=guilds)
 async def disconnect(ctx: discord.Interaction, member: discord.Member):
     # print(ctx.author)
     print(ctx.message)
