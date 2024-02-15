@@ -68,7 +68,7 @@ responses = {
 
 
 class MessageProcessor:
-    history = [] * 10
+    history = [None] * 10
     activity = {}
     emojis = {}
 
@@ -107,7 +107,10 @@ Make sure the file exists and contains properly formatted emojis.
             attr = message
             # Break attributes of attributes down one at a time
             for subfield in field.split('.'):
-                attr = getattr(attr, subfield)
+                try:
+                    attr = getattr(attr, subfield)
+                except Exception as e:
+                    print(f'{attr} could not be found in this message!')
             output[field] = attr
         return output
 

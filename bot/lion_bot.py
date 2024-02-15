@@ -87,9 +87,7 @@ signal.signal(signal.SIGINT, signal_handler)
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
-# discord_client = discord.Client(intents=intents)
 bot = commands.Bot(command_prefix='/', intents=intents)
-# tree = app_commands.CommandTree(discord_client)
 
 # Logging
 handler = logging.FileHandler(filename='./logs/lion_bot.log', encoding='utf-8', mode='w')
