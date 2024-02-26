@@ -110,7 +110,9 @@ Make sure the file exists and contains properly formatted emojis.
                 try:
                     attr = getattr(attr, subfield)
                 except Exception as e:
-                    print(f'{attr} could not be found in this message!')
+                    attr = None
+                    if subfield != 'nick' and subfield != 'name' and subfield != 'id':
+                        print(f'{subfield} could not be found in this message!')
             output[field] = attr
         return output
 
