@@ -32,7 +32,7 @@ import pytz
 
 
 ############## WORK ZONE ##############
-ck_members = {}
+
 #######################################
 
 
@@ -44,26 +44,14 @@ def print_error(path: str, e: Exception, is_fatal: bool = False) -> None:
 
 # Load logs
 mp_instance = mp.MessageProcessor()
-daily_log_temp = {}
-daily_log: dict[int, dt.datetime] = {}
 try:
     # Activity log
     path = './bot/messaging/activity'
     file = open(path, 'r')
     mp_instance.activity = ast.literal_eval(file.read())
     file.close()
-
-    # Daily log
-    path = './logs/daily.log'
-    file = open(path, 'r')
-    daily_log_temp = ast.literal_eval(file.read())
-    file.close()
 except Exception as e:
     print_error(path, e, True)
-
-# Change strings to datetimes
-for key in daily_log_temp.keys():
-    daily_log[key] = dt.datetime.strptime(daily_log_temp[key], '%Y-%m-%d %H:%M:%S.%f')
 
 
 ############## SIGNALS ################
@@ -73,15 +61,6 @@ def signal_handler(sig, frame):
         path = './bot/messaging/activity'
         file = open(path, 'w')
         file.write(str(mp_instance.activity))
-        file.close()
-
-        # Log daily
-        path = './logs/daily.log'
-        file = open(path, 'w')
-        daily_log_out = {}
-        for key in daily_log.keys():
-            daily_log_out[key] = str(daily_log[key])
-        file.write(str(daily_log_out))
         file.close()
     except Exception as e:
         print_error(path, e, True)
@@ -141,12 +120,19 @@ except Exception as e:
     # print(e)
 
 db = mongo_client.my_database
-posts = db['posts']
+db_posts = db['posts']
 db_members = db['members']
+db_daily = db['daily']
 #######################################
 
 
 ############### EVENTS ################
+# DM owner for errors and updates
+async def message_owner(content: str) -> None:
+    user = await bot.fetch_user(307723444428996608)
+    await user.send(content)
+
+
 @bot.event
 async def on_connect():
     print(f'[STATUS] Connected to Discord as {bot.user}!')
@@ -170,7 +156,7 @@ async def on_message(message: discord.Message):
 
     if connected_to_mongo:
         try:
-            posts.insert_one(post)
+            db_posts.insert_one(post)
         except pymongo.errors.OperationFailure:
             logging.error("Something went wrong with sending a message to MongoDB!")
 
@@ -203,8 +189,7 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
         # Do not ping if I am already in voice
         for m in after.channel.members:
             if m.id == 307723444428996608: return
-        user = await bot.fetch_user(307723444428996608)
-        await user.send(f'{member} joined voice!')
+        await message_owner(f'{member} joined voice!')
     elif before.channel != None and after.channel == None:
         print(f'{member} left voice!')
 #######################################
@@ -213,11 +198,15 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
 ############# COMMANDS ################
 @bot.tree.command(name='daily', description='Gambling! 100 is the winning score', guilds=guilds)
 async def daily(ctx: discord.Interaction): 
-    m_id = ctx.user.id
-
+    # Ensure everything has gone right
     if ctx.guild is None:
         print('/daily: guild is None!')
         return
+    if not isinstance(ctx.channel, discord.channel.TextChannel):
+        print('/daily: channel was not a text channel!')
+        return
+    
+    m_id = ctx.user.id
 
     # 10% chance yogert kicks himself
     if m_id == 834559271277559819 and random() > 0.9:
@@ -225,37 +214,56 @@ async def daily(ctx: discord.Interaction):
         if member is not None:
             await member.kick(reason='You won the lottery!')
 
-    if m_id not in daily_log:
-        daily_log[m_id] = dt.datetime.min
-    difference = dt.datetime.now() - daily_log[m_id]
+    # Get the last /daily timestamp from the database
+    query = {'id': ctx.user.id}
+    result = list(db_daily.find(query))
+    last = None
+    if len(result) == 0:
+        last = str(dt.datetime.min)
+    else:
+        last = result[0]['last']
+    last = dt.datetime.strptime(last, '%Y-%m-%d %H:%M:%S')
+    now = dt.datetime.now().replace(microsecond=0)
+    difference = now - last
 
     target_difference = 60 * 60 * 4     # 4 hours
-
     diff_seconds = 24 * 60 * 60 * difference.days + difference.seconds
-    pretty_future = target_difference - diff_seconds
-    pretty_hours = int(pretty_future / (60 * 60))
-    pretty_minutes = int(pretty_future / 60 % 60)
-    pretty_seconds = int(pretty_future % 60)
 
-    if diff_seconds > target_difference:
-        cooldown_over = True
-        print('/daily it has been long enough!')
-    else:
-        await ctx.response.send_message(f'It has not been long enough since you last used /daily!\nPlease wait another {pretty_hours} hours {pretty_minutes} minutes and {pretty_seconds} seconds.', ephemeral=True)
-        print('/daily it has NOT been long enough!')
+    if diff_seconds < target_difference:
+        pretty_future = target_difference - diff_seconds
+        pretty_hours = int(pretty_future / (60 * 60))
+        pretty_minutes = int(pretty_future / 60 % 60)
+        pretty_seconds = int(pretty_future % 60)
 
+        response = 'It has not been long enough since you last used /daily!\nPlease wait another '
+        if pretty_hours == 1:
+            response += f'{pretty_hours} hour '
+        elif pretty_hours > 1:
+            response += f'{pretty_hours} hours '
 
-    if cooldown_over:
-        daily_log[m_id] = dt.datetime.now()
-    else:
+        if pretty_hours > 0 and pretty_minutes > 0 and pretty_seconds == 0:
+            response += 'and '
+
+        if pretty_minutes == 1:
+            response += f'{pretty_minutes} minute '
+        elif pretty_minutes > 1:
+            response += f'{pretty_minutes} minutes '
+
+        if pretty_minutes > 0 and pretty_seconds > 0:
+            response += 'and '
+
+        if pretty_seconds == 1:
+            response += f'{pretty_seconds} second. '
+        elif pretty_seconds > 1:
+            response += f'{pretty_seconds} seconds. '
+        await ctx.response.send_message(response, ephemeral=True)
         return
 
-    if not isinstance(ctx.channel, discord.channel.TextChannel):
-        print('botkick: channel was not a text channel!')
-        return
-    
+    # Update database
+    post = {'id': m_id, 'last': str(now)}
+    db_daily.update_one(query, {'$set': post}, upsert=True)
+
     val = randint(1, 100)
-
     if val == 100:
         if ctx.guild is None:
             print('none guild')
@@ -308,7 +316,6 @@ async def ck(ctx: discord.Interaction, subcommand: str = '', name: str = ''):
             if len(result) == 0:
                 # Create new member and add to database
                 member = ms.Member(ctx.user.id, name)
-                ck_members[ctx.user.id] = member
                 if connected_to_mongo:
                     try:
                         db_members.insert_one(member.to_dict())
