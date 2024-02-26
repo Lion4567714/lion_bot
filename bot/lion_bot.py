@@ -1,5 +1,7 @@
 # TODO: Track who uses /daily and how often
 # TODO: Increase odds of /daily working based on social credit
+# TODO: Republican bot sentiments
+# TODO: New pious pfp
 
 
 ############### IMPORTS ###############
@@ -18,6 +20,7 @@ import sys
 import urllib.parse
 
 import message_processor as mp
+import member_stats as ms
 
 from random import random
 from random import randint
@@ -25,6 +28,11 @@ import signal
 import ast
 import datetime as dt
 import pytz
+#######################################
+
+
+############## WORK ZONE ##############
+ck_members = {}
 #######################################
 
 
@@ -134,6 +142,7 @@ except Exception as e:
 
 db = mongo_client.my_database
 posts = db['posts']
+db_members = db['members']
 #######################################
 
 
@@ -148,6 +157,9 @@ async def on_connect():
 async def on_ready():
     for guild in guilds:
         await bot.tree.sync(guild=guild)
+
+    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name='you'))
+
     print(f'[STATUS] Bot is ready!')
 
 
@@ -160,7 +172,7 @@ async def on_message(message: discord.Message):
         try:
             posts.insert_one(post)
         except pymongo.errors.OperationFailure:
-                logging.error("Something went wrong with sending a message to MongoDB!")
+            logging.error("Something went wrong with sending a message to MongoDB!")
 
     if message.author == bot.user:
         return
@@ -283,14 +295,53 @@ async def daily(ctx: discord.Interaction):
             await ctx.channel.send('Skill issue <@' + str(m_id) + '>')
             
 
+@bot.tree.command(name='ck', description='I do a little roleplaying', guilds=guilds)
+async def ck(ctx: discord.Interaction, subcommand: str = '', name: str = ''):
+    # Enroll user in Crusader Kings roleplay
+    if subcommand == 'enroll':
+        if name == '':
+            await ctx.response.send_message('Usage: `/ck enroll [NAME]`', ephemeral=True)
+        else:
+            query = {'id': ctx.user.id}
+            result = list(db_members.find(query))
+
+            if len(result) == 0:
+                # Create new member and add to database
+                member = ms.Member(ctx.user.id, name)
+                ck_members[ctx.user.id] = member
+                if connected_to_mongo:
+                    try:
+                        db_members.insert_one(member.to_dict())
+                    except pymongo.errors.OperationFailure:
+                        logging.error("Something went wrong when trying to add member to database!")
+            else:
+                await ctx.response.send_message(f'You already enrolled!', ephemeral=True)
+            if member != None:
+                await ctx.response.send_message(f'You are now registered as **{member.rank.name} {member.name}**!')
+    # View stats of given player, self if no name provided
+    elif subcommand == 'stats':
+        id = ctx.user.id if name == '' else name[2:len(name) - 1]
+
+        query = {'id': id}
+        result = list(db_members.find(query))
+
+        if len(result) == 0 and name == '':
+            await ctx.response.send_message('You have not enrolled with /ck yet!\nYou can do so using `/ck enroll [NAME]`', ephemeral=True)
+        elif len(result) == None:
+            await ctx.response.send_message('That user has not enrolled with /ck yet!', ephemeral=True)
+        else:
+            member = ms.Member(result[0])
+            await ctx.response.send_message(member.print_format())
+    # Print command usage
+    else:
+        await ctx.response.send_message('Usage: `/ck [enroll|stats]`', ephemeral=True)
+
+
 @bot.tree.command(name='debug', description='May only be used by the bot\'s owner', guilds=guilds)
-async def debug(ctx: discord.Interaction, setting: str, arg0: str = ""):
-    if ctx.message is None:
-        print('cant find message!')
-        return
-    
-    if ctx.message.author.id != 307723444428996608:
-        await ctx.response.send_message('You are not permitted to use this command! (i.e., go fuck yourself)')
+async def debug(ctx: discord.Interaction, setting: str, arg0: str = ''):
+    if ctx.user.id != 307723444428996608:
+        await ctx.response.send_message('You are not permitted to use this command!', ephemeral=True)
+        print(f'{ctx.user.name} just tried to use /debug')
         return
 
     if setting == 'add roles':
@@ -314,8 +365,39 @@ async def debug(ctx: discord.Interaction, setting: str, arg0: str = ""):
 
             if not has_role:
                 await member.add_roles(role)
+    elif setting == 'sync':
+        print('[STATUS] Syncing commands...')
+        if arg0 == '':
+            await ctx.response.send_message('/debug sync requires another argument!\nUsage: /debug sync [global|local]', ephemeral=True)
+            return
+        elif arg0 == 'global':
+            bot.tree.clear_commands(guild=None)
+            # for guild in guilds:
+                # await bot.tree.sync(guild=guild)
+        elif arg0 == 'local':
+            bot.tree.clear_commands(guild=ctx.guild)
+            bot.tree.remove_command('ping')
+            await bot.tree.sync(guild=ctx.guild)
+        else:
+            await ctx.response.send_message('Invalid argument for /debug sync!\nUsage: /debug sync [global|local]', ephemeral=True)
+            return
+        
+        await ctx.response.send_message(f'Command tree synced!', ephemeral=True)
+        print('[STATUS] Syncing complete!')
+    elif setting == 'test':
+        # bot.tree.remove_command("ping", guild=None)
+        # for guild in guilds:  
+            # await bot.tree.sync(guild=guild)
+        print(await bot.tree.fetch_commands())
+        # print(bot.tree.client.remove_command("ping"))
+        print(bot.tree.get_commands(guild=guilds[0]))
+        bot.tree.clear_commands(guild=None)
+        await bot.tree.sync()
+        test = bot.tree.remove_command(arg0)
+        print('test: ' + str(test))
+        await ctx.response.send_message("tested")
     else:
-        await ctx.response.send_message(f'"{setting}" is an invalid subcommand!')
+        await ctx.response.send_message(f'"{setting}" is an invalid subcommand!', ephemeral=True)
 
 
 # @bot.tree.command(name='test1', guilds=guilds)
@@ -347,7 +429,7 @@ async def ping(ctx: discord.Interaction):
 @bot.tree.command(name='disconnect', description='Disconnects the specified user from voice', guilds=guilds)
 async def disconnect(ctx: discord.Interaction, member: discord.Member):
     # print(ctx.author)
-    print(ctx.message)
+    print(ctx.user.name + " used disconnect")
 
     if ctx.message != None:
         print('it worked')
