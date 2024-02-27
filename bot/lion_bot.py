@@ -303,30 +303,47 @@ async def daily(ctx: discord.Interaction):
             await ctx.channel.send('Skill issue <@' + str(m_id) + '>')
             
 
-@bot.tree.command(name='ck', description='I do a little roleplaying', guilds=guilds)
-async def ck(ctx: discord.Interaction, subcommand: str = '', name: str = ''):
+@bot.tree.command(name='ck', description='I do a little roleplaying. Try /ck help', guilds=guilds)
+async def ck(ctx: discord.Interaction, *, command: str):
+    async def usage(tip: str) -> None:
+        await ctx.response.send_message(tip, ephemeral=True)
+
+    args = command.split(' ')
+    if len(args) == 0:
+        await usage('Usage: `/ck [help|enroll|stats]`')
+        return
+    
+    subcommand = args[0]
+
     # Enroll user in Crusader Kings roleplay
     if subcommand == 'enroll':
-        if name == '':
-            await ctx.response.send_message('Usage: `/ck enroll [NAME]`', ephemeral=True)
-        else:
-            query = {'id': ctx.user.id}
-            result = list(db_members.find(query))
+        if len(args) != 2:
+            await usage('Usage: `/ck enroll [NAME]`')
+            return
+        
+        name = args[1]
 
-            if len(result) == 0:
-                # Create new member and add to database
-                member = ms.Member(ctx.user.id, name)
-                if connected_to_mongo:
-                    try:
-                        db_members.insert_one(member.to_dict())
-                    except pymongo.errors.OperationFailure:
-                        logging.error("Something went wrong when trying to add member to database!")
-            else:
-                await ctx.response.send_message(f'You already enrolled!', ephemeral=True)
-            if member != None:
-                await ctx.response.send_message(f'You are now registered as **{member.rank.name} {member.name}**!')
+        query = {'id': ctx.user.id}
+        result = list(db_members.find(query))
+
+        if len(result) == 0:
+            # Create new member and add to database
+            member = ms.Member(ctx.user.id, name)
+            if connected_to_mongo:
+                try:
+                    db_members.insert_one(member.to_dict())
+                except pymongo.errors.OperationFailure:
+                    logging.error("Something went wrong when trying to add member to database!")
+        else:
+            await ctx.response.send_message(f'You already enrolled!', ephemeral=True)
+        if member != None:
+            await ctx.response.send_message(f'You are now registered as **{member.rank.name} {member.name}**!')
     # View stats of given player, self if no name provided
     elif subcommand == 'stats':
+        name = ''
+        if len(args) == 2:
+            name = args[1]
+
         id = ctx.user.id if name == '' else name[2:len(name) - 1]
 
         query = {'id': id}
@@ -339,9 +356,23 @@ async def ck(ctx: discord.Interaction, subcommand: str = '', name: str = ''):
         else:
             member = ms.Member(result[0])
             await ctx.response.send_message(member.print_format())
+    # Update user information
+    elif subcommand == 'update':
+        update_type = None if len(args) < 2 else args[1]
+        if update_type == 'name':
+            if len(args) != 3:
+                await usage('Usage: `/ck update name [NEW NAME]`')
+                return
+            
+            query = {'id': ctx.user.id}
+            post = {'id': ctx.user.id, 'name': args[2]}
+            db_members.update_one(query, {'$set': post})
+            await ctx.response.send_message(f'Updated your name to {args[2]}!')
+        else:
+            await usage('Usage: `/ck update [name]`')
     # Print command usage
     else:
-        await ctx.response.send_message('Usage: `/ck [enroll|stats]`', ephemeral=True)
+        await usage('Usage: `/ck [help|enroll|stats]`')
 
 
 @bot.tree.command(name='debug', description='May only be used by the bot\'s owner', guilds=guilds)
@@ -407,30 +438,9 @@ async def debug(ctx: discord.Interaction, setting: str, arg0: str = ''):
         await ctx.response.send_message(f'"{setting}" is an invalid subcommand!', ephemeral=True)
 
 
-# @bot.tree.command(name='test1', guilds=guilds)
-# async def test1(ctx: discord.Interaction):
-#     if isinstance(ctx.user, discord.User):
-#         print('[ERROR] Found discord.User type where discord.Member type was needed!')
-#         return
-
-#     member: discord.Member = ctx.user
-
-#     role = get(member.guild.roles, name='[TEST]')
-#     if not isinstance(role, discord.Role):
-#         print('[ERROR] Role not found!')
-#         return
-
-#     await member.add_roles(role)
-
-
 @bot.tree.command(name='ping', description='Checks the response time of the bot\'s server', guilds=guilds)
 async def ping(ctx: discord.Interaction):
     await ctx.response.send_message(f'pong! *({int(bot.latency * 1000)}ms)*')
-
-
-# @bot.tree.command(name='test', guilds=guilds)
-# async def test(ctx):
-#     await ctx.response.send_message('https://tenor.com/view/shrek-stop-talking-five-minutes-be-yourself-please-gif-13730564', ephemeral=True)
 
 
 @bot.tree.command(name='disconnect', description='Disconnects the specified user from voice', guilds=guilds)
@@ -456,22 +466,6 @@ async def disconnect(ctx: discord.Interaction, member: discord.Member):
 
     await member.move_to(None)
     await ctx.response.send_message("done!", ephemeral=True)
-
-
-# @tree.command(name='timer', guilds=guilds)
-# async def timer(interaction: discord.Interaction, delay: int):
-#     time.sleep(delay)
-#     await interaction.response.send_message("Timer's up!")
-
-
-# @tree.command(name='debug', guilds=guilds)
-# async def debug(interaction: discord.Interaction, setting: str):
-#     match setting:
-#         case 'clear commands':
-#             tree.clear_commands(guild=interaction.guild)
-#             await interaction.response.send_message('Cleared commands!')
-#         case _:
-#             await interaction.response.send_message(f'"{setting}" is an invalid setting!')
 #######################################
 
 

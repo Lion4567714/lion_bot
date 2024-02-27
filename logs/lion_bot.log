@@ -1,2 +1,46 @@
-[2024-02-26 11:35:29] [INFO    ] discord.client: logging in using static token
-[2024-02-26 11:35:30] [INFO    ] discord.gateway: Shard ID None has connected to Gateway (Session ID: 2dde81dced9750f99458a165c5f218a1).
+[2024-02-26 17:49:46] [INFO    ] discord.client: logging in using static token
+[2024-02-26 17:49:46] [INFO    ] discord.gateway: Shard ID None has connected to Gateway (Session ID: be98f698ab1c4e23bf2e2d76d44e8bf5).
+[2024-02-26 17:50:04] [ERROR   ] discord.app_commands.tree: Ignoring exception in command 'ck'
+Traceback (most recent call last):
+  File "/home/lion/miniconda3/envs/lion_bot_env/lib/python3.9/site-packages/discord/app_commands/commands.py", line 828, in _do_call
+    return await self._callback(interaction, **params)  # type: ignore
+  File "/home/lion/lion_bot/./bot/lion_bot.py", line 358, in ck
+    await ctx.response.send_message(member.print_format())
+  File "/home/lion/miniconda3/envs/lion_bot_env/lib/python3.9/site-packages/discord/interactions.py", line 801, in send_message
+    await adapter.create_interaction_response(
+  File "/home/lion/miniconda3/envs/lion_bot_env/lib/python3.9/site-packages/discord/webhook/async_.py", line 221, in request
+    raise HTTPException(response, data)
+discord.errors.HTTPException: 400 Bad Request (error code: 40060): Interaction has already been acknowledged.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/lion/miniconda3/envs/lion_bot_env/lib/python3.9/site-packages/discord/app_commands/tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "/home/lion/miniconda3/envs/lion_bot_env/lib/python3.9/site-packages/discord/app_commands/commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+  File "/home/lion/miniconda3/envs/lion_bot_env/lib/python3.9/site-packages/discord/app_commands/commands.py", line 846, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'ck' raised an exception: HTTPException: 400 Bad Request (error code: 40060): Interaction has already been acknowledged.
+[2024-02-26 17:50:09] [ERROR   ] discord.app_commands.tree: Ignoring exception in command 'ck'
+Traceback (most recent call last):
+  File "/home/lion/miniconda3/envs/lion_bot_env/lib/python3.9/site-packages/discord/app_commands/commands.py", line 828, in _do_call
+    return await self._callback(interaction, **params)  # type: ignore
+  File "/home/lion/lion_bot/./bot/lion_bot.py", line 358, in ck
+    await ctx.response.send_message(member.print_format())
+  File "/home/lion/miniconda3/envs/lion_bot_env/lib/python3.9/site-packages/discord/interactions.py", line 801, in send_message
+    await adapter.create_interaction_response(
+  File "/home/lion/miniconda3/envs/lion_bot_env/lib/python3.9/site-packages/discord/webhook/async_.py", line 219, in request
+    raise NotFound(response, data)
+discord.errors.NotFound: 404 Not Found (error code: 10062): Unknown interaction
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/lion/miniconda3/envs/lion_bot_env/lib/python3.9/site-packages/discord/app_commands/tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "/home/lion/miniconda3/envs/lion_bot_env/lib/python3.9/site-packages/discord/app_commands/commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+  File "/home/lion/miniconda3/envs/lion_bot_env/lib/python3.9/site-packages/discord/app_commands/commands.py", line 846, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'ck' raised an exception: NotFound: 404 Not Found (error code: 10062): Unknown interaction
