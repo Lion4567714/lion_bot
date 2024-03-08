@@ -360,14 +360,20 @@ async def ck(ctx: discord.Interaction, *, command: str):
     elif subcommand == 'update':
         update_type = None if len(args) < 2 else args[1]
         if update_type == 'name':
-            if len(args) != 3:
+            if len(args) < 3:
                 await usage('Usage: `/ck update name [NEW NAME]`')
                 return
             
+            new_name = ''
+            for n in range(2, len(args)):
+                if n != 2:
+                    new_name += ' '
+                new_name += args[n]
+
             query = {'id': ctx.user.id}
-            post = {'id': ctx.user.id, 'name': args[2]}
+            post = {'id': ctx.user.id, 'name': new_name}
             db_members.update_one(query, {'$set': post})
-            await ctx.response.send_message(f'Updated your name to {args[2]}!')
+            await ctx.response.send_message(f'Updated your name to {new_name}!')
         else:
             await usage('Usage: `/ck update [name]`')
     # Print command usage
