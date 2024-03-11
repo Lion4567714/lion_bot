@@ -123,6 +123,7 @@ db = mongo_client.my_database
 db_posts = db['posts']
 db_members = db['members']
 db_daily = db['daily']
+db_list = db['the list']
 #######################################
 
 
@@ -269,18 +270,7 @@ async def daily(ctx: discord.Interaction):
             print('none guild')
             return
         
-        the_list = [
-                    171062001303420928, # ardo
-                    171062001303420928, # ardo
-                    731008459041931396, # arsenal
-                    308437138855428117, # brown
-                    370079779917004800, # jerry
-                    138133846301474816, # nyanusmaps
-                    143210335594086400, # pacmen
-                    143210335594086400, # pacmen
-                    879882591929532437, # starry
-                    834559271277559819, # yogert
-                    ]
+        the_list = list(db_list.find({}))
         member_id = the_list[randint(0, len(the_list))]
 
         member = await ctx.guild.fetch_member(member_id)
@@ -300,8 +290,73 @@ async def daily(ctx: discord.Interaction):
             caller_name = caller.nick
             if caller_name is None:
                 caller_name = caller.name
-            await ctx.channel.send('Skill issue <@' + str(m_id) + '>')
+            await ctx.channel.send(f'Skill issue <@{str(m_id)}>')
             
+
+@bot.tree.command(name="list", description='This command is members-only!', guilds=guilds)
+async def the_list(ctx: discord.Interaction, *, command: str):
+    async def usage(tip: str) -> None:
+        await ctx.response.send_message(tip, ephemeral=True)
+
+    args = command.split(' ')
+    if len(args) == 0:
+        await usage('Usage: `/list [help|add] ...`')
+
+    politburo_role = ctx.guild.get_role(1205643157732073512)
+    party_role = ctx.guild.get_role(1205643117626392626)
+    rabble_role = ctx.guild.get_role(1205643020502958080)
+
+    subcommand = args[0]
+    # Add target to the list
+    if subcommand == 'add':
+        user = ctx.user.id
+        user = ctx.guild.get_member(user)
+        if politburo_role not in user.roles and party_role not in user.roles:
+            ctx.response.send_message('You are not allowed to use this command!\nAlerting the authorities...', ephemeral=True)
+            politburo_channel = ctx.guild.get_channel(1206325612785045534)
+            politburo_channel.send(f'{user.name} just tried doing /list ' + command + '!')
+            print('/list add -> ' + command)
+            return
+        elif politburo_role not in user.roles:
+            ctx.response.send_message('You are allowed to use this command, but you are not on the council.\nInforming the politburo...')
+            politburo_channel = ctx.guild.get_channel(1206325612785045534)
+            politburo_channel.send(f'{user.name} just tried doing /list ' + command + '!')
+            print('/list add -> ' + command)
+            return
+
+        if len(args) != 2:
+            await usage('Usage: `/list add [name]`\nExample: `/list add @Lion Bot`')
+        uid = args[1][2:len(args[1]) - 1]
+
+        # Add role to target
+        member = ctx.guild.get_member(int(uid))
+        if politburo_role in member.roles:
+            await ctx.response.send_message(f'Hey <@{uid}>, <@{ctx.user.id}> just tried to add you to the list. Their fate is in your hands.')
+            return
+        list_role = ctx.guild.get_role(1216854346700951715)
+        if list_role not in member.roles:
+            await member.add_roles(list_role)
+            ret += 2
+            
+        print(f'{ctx.user.name} just used /list add on {member.name}')
+
+        ret = 0
+        # Add target to database
+        query = {'id': uid}
+        result = list(db_list.find(query))
+        if len(result) == 0:
+            post = {'id': uid}
+            db_list.insert_one(post)
+            ret += 1
+
+        if ret > 0:
+            await ctx.response.send_message(f'<@{uid}> was added to the list!', ephemeral=True)
+        else:
+            await ctx.response.send_message(f'<@{uid}> is already on the list!', ephemeral=True)
+
+    else:
+        await usage('Usage: `/list [help|add] ...`')
+
 
 @bot.tree.command(name='ck', description='I do a little roleplaying. Try /ck help', guilds=guilds)
 async def ck(ctx: discord.Interaction, *, command: str):
@@ -423,17 +478,7 @@ async def debug(ctx: discord.Interaction, setting: str, arg0: str = ''):
         await ctx.response.send_message(f'Command tree synced!', ephemeral=True)
         print('[STATUS] Syncing complete!')
     elif setting == 'test':
-        # bot.tree.remove_command("ping", guild=None)
-        # for guild in guilds:  
-            # await bot.tree.sync(guild=guild)
-        print(await bot.tree.fetch_commands())
-        # print(bot.tree.client.remove_command("ping"))
-        print(bot.tree.get_commands(guild=guilds[0]))
-        bot.tree.clear_commands(guild=None)
-        await bot.tree.sync()
-        test = bot.tree.remove_command(arg0)
-        print('test: ' + str(test))
-        await ctx.response.send_message("tested")
+        print(list(db_list.find({})))
     else:
         await ctx.response.send_message(f'"{setting}" is an invalid subcommand!', ephemeral=True)
 
