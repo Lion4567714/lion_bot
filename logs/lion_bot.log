@@ -36,3 +36,5 @@ Traceback (most recent call last):
   File "/home/lion/miniconda3/envs/lion_bot_env/lib/python3.9/site-packages/discord/app_commands/commands.py", line 846, in _do_call
     raise CommandInvokeError(self, e) from e
 discord.app_commands.errors.CommandInvokeError: Command 'ck' raised an exception: IndexError: list index out of range
+[2024-02-26 21:27:52] [INFO    ] discord.client: logging in using static token
+[2024-02-26 21:27:53] [INFO    ] discord.gateway: Shard ID None has connected to Gateway (Session ID: 22c39a5f6a9fc62fb83f3ddce4de42bc).
