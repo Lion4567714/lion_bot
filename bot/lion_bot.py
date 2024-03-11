@@ -2,6 +2,7 @@
 # TODO: Increase odds of /daily working based on social credit
 # TODO: Republican bot sentiments
 # TODO: New pious pfp
+# TODO: Add OpenAI if possible
 
 
 ############### IMPORTS ###############
@@ -337,7 +338,7 @@ async def the_list(ctx: discord.Interaction, *, command: str):
         if list_role not in member.roles:
             await member.add_roles(list_role)
             ret += 2
-            
+
         print(f'{ctx.user.name} just used /list add on {member.name}')
 
         ret = 0
@@ -399,14 +400,14 @@ async def ck(ctx: discord.Interaction, *, command: str):
         if len(args) == 2:
             name = args[1]
 
-        id = ctx.user.id if name == '' else name[2:len(name) - 1]
+        id = ctx.user.id if name == '' else int(name[2:len(name) - 1])
 
         query = {'id': id}
         result = list(db_members.find(query))
 
         if len(result) == 0 and name == '':
             await ctx.response.send_message('You have not enrolled with /ck yet!\nYou can do so using `/ck enroll [NAME]`', ephemeral=True)
-        elif len(result) == None:
+        elif len(result) == 0:
             await ctx.response.send_message('That user has not enrolled with /ck yet!', ephemeral=True)
         else:
             member = ms.Member(result[0])
