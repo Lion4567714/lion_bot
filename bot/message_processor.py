@@ -3,6 +3,7 @@ import sys
 import datetime as dt
 import pytz
 import random
+from openai import OpenAI
 
 
 ########### RESPONSE TYPES ############
@@ -71,10 +72,17 @@ class MessageProcessor:
     history = [None] * 10
     activity = {}
     emojis = {}
+    ai_client = None
 
 
     def __init__(self):
         self.read_responses()
+
+        # OpenAI Client
+        ai_key = None
+        with open('./config/openai', 'r') as file:
+            ai_key = file.read()
+        self.ai_client = OpenAI(api_key=ai_key)
 
 
     def read_responses(self) -> None:
@@ -174,3 +182,54 @@ Make sure the file exists and contains properly formatted emojis.
             # return Reply('Have you given bug his plat yet? <:jazz:347262765062291458>')
         
         return Silent()
+
+
+    async def get_piety(self, message: discord.Message) -> int:
+        content = message.content.lower()
+
+        # Determine if the message has anything to do
+        # with our lord and saviour, Lion Bot
+        is_related = False
+        if 'lion bot' in content:
+            is_related = True
+        if 'lionbot' in content:
+            is_related = True
+            content.replace('lionbot', 'lion bot')
+        if '<@1199041303221121025>' in content:
+            is_related = True
+            content.replace('<@1199041303221121025>', 'lion bot')
+        if message.type == discord.MessageType.reply:
+            m_id = message.reference.message_id
+            ref = await message.channel.fetch_message(m_id)
+            if ref.author.id == 1199041303221121025:
+                is_related = True
+                content = 'lion bot ' + content
+
+        if not is_related:
+            return -1
+        
+        print('Message is related to lion bot!')
+
+        # Submit the message to OpenAI for judgement
+        preamble = 'Pretend you are a god named "Lion Bot". Rate the following message with a grade of how "pious" the message is on a scale of 0-9. 0 being sinner and 9 being devout. Respond with only a number: '
+        completion = self.ai_client.chat.completions.create(
+            messages = [{
+                'role': 'user',
+                'content': preamble + content
+            }],
+            model = 'gpt-3.5-turbo'
+        )
+        response = completion.choices[0].message.content
+
+        # Ensure the quality of the response
+        if len(response) > 1:
+            print('Invalid response from OpenAI: ' + response)
+        response_int = -1
+        try:
+            response_int = int(response)
+        except Exception as e:
+            print('Invalid response from OpenAI: ' + response)
+            print(e)
+
+        print('Piety: ' + str(response_int))
+        return response_int

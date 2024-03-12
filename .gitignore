@@ -1,4 +1,5 @@
 config/*
 __pycache__
 .vscode
-.log
+**/*.log
+bot/messaging/activity

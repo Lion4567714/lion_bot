@@ -28,7 +28,6 @@ from random import randint
 import signal
 import ast
 import datetime as dt
-import pytz
 #######################################
 
 
@@ -181,6 +180,34 @@ async def on_message(message: discord.Message):
     elif isinstance(response, mp.Reaction):
         await message.add_reaction(response.emoji)
 
+    piety = await mp_instance.get_piety(message)
+    if piety >= 0:
+        print('updating...' + str(message.author.id))
+        update_piety(message.author.id, piety)
+
+
+def update_piety(uid: int, piety: int) -> None:
+    piety_inc = 0
+    if piety == 0:
+        piety_inc = -500
+    elif piety == 1:
+        piety_inc = -100
+    elif piety == 2:
+        piety_inc = -50
+    elif piety == 7:
+        piety_inc = 50
+    elif piety == 8:
+        piety_inc = 100
+    elif piety == 9:
+        piety_inc = 500
+
+    if piety_inc != 0:
+        print('here')
+        query = {'id': uid}
+        post = {'piety': piety_inc}
+        db_members.update_one(query, {'$inc': post})
+        print('Modified piety by ' + str(piety_inc))
+
 
 @bot.event
 async def on_voice_state_update(member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
@@ -266,18 +293,20 @@ async def daily(ctx: discord.Interaction):
     db_daily.update_one(query, {'$set': post}, upsert=True)
 
     val = randint(1, 100)
+    print(f'Daily -> {ctx.user.name} got a {val}')
     if val == 100:
         if ctx.guild is None:
             print('none guild')
             return
         
         the_list = list(db_list.find({}))
-        member_id = the_list[randint(0, len(the_list))]
+        member_id = the_list[randint(0, len(the_list))]['id']
 
         member = await ctx.guild.fetch_member(member_id)
         name = member.nick
         if name == None:
             name = member.name
+
         await member.kick(reason='Someone else won the lottery!')
 
         await ctx.response.send_message('You rolled a perfect 100!', ephemeral=True)
@@ -415,21 +444,37 @@ async def ck(ctx: discord.Interaction, *, command: str):
     # Update user information
     elif subcommand == 'update':
         update_type = None if len(args) < 2 else args[1]
+        new_field = ''
+        for n in range(2, len(args)):
+            if n != 2:
+                new_field += ' '
+            new_field += args[n]
+        query = {'id': ctx.user.id}
+
         if update_type == 'name':
             if len(args) < 3:
                 await usage('Usage: `/ck update name [NEW NAME]`')
                 return
             
-            new_name = ''
-            for n in range(2, len(args)):
-                if n != 2:
-                    new_name += ' '
-                new_name += args[n]
-
-            query = {'id': ctx.user.id}
-            post = {'id': ctx.user.id, 'name': new_name}
+            post = {'id': ctx.user.id, 'name': new_field}
             db_members.update_one(query, {'$set': post})
-            await ctx.response.send_message(f'Updated your name to {new_name}!')
+            await ctx.response.send_message(f'Updated your name to {new_field}!')
+        elif update_type == 'title':
+            if len(args) < 3:
+                await usage('Usage: `/ck update title [NEW TITLE]`')
+                return
+            
+            post = {'id': ctx.user.id, 'title': new_field}
+            db_members.update_one(query, {'$set': post})
+            await ctx.response.send_message(f'Updated your title to {new_field}!')
+        elif update_type == 'disposition':
+            if len(args) < 3:
+                await usage('Usage: `/ck update disposition [NEW DISPOSITION]`')
+                return
+            
+            post = {'id': ctx.user.id, 'disposition': new_field}
+            db_members.update_one(query, {'$set': post})
+            await ctx.response.send_message(f'Updated your disposition to {new_field}!')
         else:
             await usage('Usage: `/ck update [name]`')
     # Print command usage
