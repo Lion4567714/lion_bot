@@ -1,8 +1,6 @@
 # TODO: Track who uses /daily and how often
 # TODO: Increase odds of /daily working based on social credit
 # TODO: Republican bot sentiments
-# TODO: New pious pfp
-# TODO: Add OpenAI if possible
 
 
 ############### IMPORTS ###############
@@ -417,12 +415,11 @@ async def ck(ctx: discord.Interaction, *, command: str):
             if connected_to_mongo:
                 try:
                     db_members.insert_one(member.to_dict())
+                    await ctx.response.send_message(f'You are now registered as **{member.rank.name} {member.name}**!')
                 except pymongo.errors.OperationFailure:
                     logging.error("Something went wrong when trying to add member to database!")
         else:
             await ctx.response.send_message(f'You already enrolled!', ephemeral=True)
-        if member != None:
-            await ctx.response.send_message(f'You are now registered as **{member.rank.name} {member.name}**!')
     # View stats of given player, self if no name provided
     elif subcommand == 'stats':
         name = ''

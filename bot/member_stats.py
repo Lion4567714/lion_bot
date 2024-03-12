@@ -36,10 +36,13 @@ class Member:
             self.title = None
             self.disposition = None
             self.gold = 0
+            self.gold_income = 1.0
             self.prestige_level = 0
             self.prestige = 0
+            self.prestige_income = 0.2
             self.piety_level = 0
             self.piety = 0
+            self.piety_income = 0.0
         elif isinstance(arg0, dict):
             self.id = arg0['id']
             self.rank = Rank(arg0['rank'])
@@ -47,12 +50,15 @@ class Member:
             self.title = arg0.setdefault('title')
             self.disposition = arg0.setdefault('disposition')
             self.gold = arg0['gold']
+            self.gold_income = arg0.setdefault('gold_income', 1.0)
             # self.prestige_level = arg0.setdefault('prestige_level')
             self.prestige = arg0['prestige']
             self.prestige_level = 0 if self.prestige < 0 else int(self.prestige / 500) + 1
+            self.prestige_income = arg0.setdefault('prestige_income', 0.2)
             # self.piety_level = arg0.setdefault('piety_level')
             self.piety = arg0['piety']
             self.piety_level = 0 if self.piety < 0 else int(self.piety / 500) + 1
+            self.piety_income = arg0.setdefault('piety_income', 0.0)
 
 
     def __str__(self):
@@ -60,13 +66,6 @@ class Member:
 
 
     def print_format(self) -> str:
-#         output = \
-# f"""
-# > **{self.rank.name} {self.name}**
-# > <:gold:1211490700974366720> {self.gold}
-# > <:prestige:1211489226949001256> {self.prestige}
-# > <:piety:1211489458717982750> {self.piety}
-# """
         output = '> **'
         # First line (name and title)
         if self.rank.name != None:
@@ -79,9 +78,9 @@ class Member:
         if self.disposition != None:
             output += f'\n> *{self.disposition}*'
         # Third line (stats)
-        output += f'\n> <:gold:1211490700974366720> {self.gold}'
-        output += f'\n> {prestige_levels[self.prestige_level]} {self.prestige}'
-        output += f'\n> {piety_levels[self.piety_level]} {self.piety}'
+        output += f'\n> <:gold:1211490700974366720> {self.gold} + {self.gold_income}'
+        output += f'\n> {prestige_levels[self.prestige_level]} {self.prestige} + {self.prestige_income}'
+        output += f'\n> {piety_levels[self.piety_level]} {self.piety} + {self.piety_income}'
         return output
     
 
@@ -93,8 +92,11 @@ class Member:
             'title': self.title,
             'disposition': self.disposition,
             'gold': self.gold,
+            'gold_income': self.gold_income,
             'prestige_level': self.prestige_level,
             'prestige': self.prestige,
+            'prestige_income': self.prestige_income,
             'piety_level': self.piety_level,
             'piety': self.piety,
+            'piety_income': self.piety_income,
         }
