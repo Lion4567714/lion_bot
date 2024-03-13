@@ -239,6 +239,32 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
 
 
 ############# COMMANDS ################
+@bot.tree.command(name='help', description='Use /help to find out how to use Lion Bot!', guilds=guilds)
+async def help(ctx: discord.Interaction):
+    output = \
+"""
+Available commands:
+`/help`: Information on how to use Lion Bot and his commands.
+`/ck [help|enroll|stats|update]`: Crusader Kings-style roleplay. Join in!
+\t `help`: Usage information for /ck.
+\t `enroll [name]`: Enroll yourself in the ck rolepray under `name`.
+\t `stats [name]`: Check the stats for any user. Leave `name` blank to see yourself.
+\t `update [name|disposition|title] [new]`: Update your own information.  
+`/daily`: Roll a d100 for a chance to win a real treat! Available every 4 hours.
+`/disconnect [target]`: Disconnect a user (the target) from voice chat. (Scandalous!)
+`/ping`: Test the availability and latency of Lion Bot.
+
+Restricted commands:
+`/debug`: Only available for <@307723444428996608>.
+`/list [help|add]`: All things related to *the list*. Only available for party members and above.
+\t `help`: Usage information for /list.
+\t `add [target]`: Add someone (the target) to *the list*.
+
+The only rule is that <@1199041303221121025> is the Pope. Praise and revere him, for it is He who decides your fate.
+"""
+    await ctx.response.send_message(output, ephemeral=True)
+
+
 @bot.tree.command(name='daily', description='Gambling! 100 is the winning score', guilds=guilds)
 async def daily(ctx: discord.Interaction): 
     # Ensure everything has gone right
@@ -409,7 +435,7 @@ async def ck(ctx: discord.Interaction, *, command: str):
 
     args = command.split(' ')
     if len(args) == 0:
-        await usage('Usage: `/ck [help|enroll|stats]`')
+        await usage('Usage: `/ck [help|enroll|stats|update]`')
         return
     
     subcommand = args[0]
@@ -492,7 +518,7 @@ async def ck(ctx: discord.Interaction, *, command: str):
             await usage('Usage: `/ck update [name]`')
     # Print command usage
     else:
-        await usage('Usage: `/ck [help|enroll|stats]`')
+        await usage('Usage: `/ck [help|enroll|stats|update]`')
 
 
 @bot.tree.command(name='debug', description='May only be used by the bot\'s owner', guilds=guilds)
