@@ -1,11 +1,14 @@
 # TODO: Track who uses /daily and how often
 # TODO: Increase odds of /daily working based on social credit
 # TODO: Republican bot sentiments
+# TODO: Daily events
+#       https://stackoverflow.com/questions/68240940/trigger-an-event-every-week-at-a-specific-day-and-time-in-discord-py
 
 
 ############### IMPORTS ###############
 import discord
 from discord.ext import commands
+from discord.ext import tasks
 from discord.utils import get
 
 import logging
@@ -26,6 +29,8 @@ from random import randint
 import signal
 import ast
 import datetime as dt
+
+import asyncio
 #######################################
 
 
@@ -126,6 +131,16 @@ db_list = db['the list']
 
 
 ############### EVENTS ################
+@tasks.loop(hours = 4)
+async def update_income():
+    db_members.update_many({}, [
+        {'$set': {'gold': {'$add': ['$gold', '$gold_income']}}},
+        {'$set': {'prestige': {'$add': ['$prestige', '$prestige_income']}}},
+        {'$set': {'piety': {'$add': ['$piety', '$piety_income']}}},
+    ])
+    print('Awarded income!')
+
+
 # DM owner for errors and updates
 async def message_owner(content: str) -> None:
     user = await bot.fetch_user(307723444428996608)
@@ -146,6 +161,7 @@ async def on_ready():
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name='you'))
 
     print(f'[STATUS] Bot is ready!')
+    update_income.start()
 
 
 @bot.event
@@ -526,6 +542,14 @@ async def debug(ctx: discord.Interaction, setting: str, arg0: str = ''):
         
         await ctx.response.send_message(f'Command tree synced!', ephemeral=True)
         print('[STATUS] Syncing complete!')
+    elif setting == 'update database':
+        m = ms.Member(-1, 'TEST')
+        db_members.update_many({}, {'$set': {'gold': 0}})
+        db_members.update_many({}, {'$set': {'gold_income': 1.0}})
+        # db_members.update_many({'gold_income': {'$exists': False}}, {'$set': {'gold_income': m.gold_income}})
+        # db_members.update_many({'prestige_income': {'$exists': False}}, {'$set': {'prestige_income': m.prestige_income}})
+        # db_members.update_many({'piety_income': {'$exists': False}}, {'$set': {'piety_income': m.piety_income}})
+        await ctx.response.send_message('Updated database successfully!', ephemeral=True)
     elif setting == 'test':
         print(list(db_list.find({})))
     else:
