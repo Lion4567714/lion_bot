@@ -1,4 +1,5 @@
 from enum import Enum
+import math
 
 
 class Rank(Enum):
@@ -78,9 +79,9 @@ class Member:
         if self.disposition != None:
             output += f'\n> *{self.disposition}*'
         # Third line (stats)
-        output += f'\n> <:gold:1211490700974366720> {self.gold} + {self.gold_income}'
-        output += f'\n> {prestige_levels[self.prestige_level]} {self.prestige} + {self.prestige_income}'
-        output += f'\n> {piety_levels[self.piety_level]} {self.piety} + {self.piety_income}'
+        output += f'\n> <:gold:1211490700974366720> {round(self.gold, 1)} + {self.gold_income}'
+        output += f'\n> {prestige_levels[self.prestige_level]} {round(self.prestige, 1)} + {self.prestige_income}'
+        output += f'\n> {piety_levels[self.piety_level]} {round(self.piety, 1)} + {self.piety_income}'
         return output
     
 
