@@ -1,8 +1,6 @@
 # TODO: Track who uses /daily and how often
 # TODO: Increase odds of /daily working based on social credit
 # TODO: Republican bot sentiments
-# TODO: Daily events
-#       https://stackoverflow.com/questions/68240940/trigger-an-event-every-week-at-a-specific-day-and-time-in-discord-py
 
 
 ############### IMPORTS ###############
@@ -31,6 +29,7 @@ import ast
 import datetime as dt
 
 import asyncio
+import os
 #######################################
 
 
@@ -265,7 +264,7 @@ The only rule is that <@1199041303221121025> is the Pope. Praise and revere him,
     await ctx.response.send_message(output, ephemeral=True)
 
 
-@bot.tree.command(name='daily', description='Gambling! 100 is the winning score', guilds=guilds)
+@bot.tree.command(name='daily', description='Gambling! 95+ is the winning score', guilds=guilds)
 async def daily(ctx: discord.Interaction): 
     # Ensure everything has gone right
     if ctx.guild is None:
@@ -331,10 +330,11 @@ async def daily(ctx: discord.Interaction):
     # Update database
     post = {'id': m_id, 'last': str(now)}
     db_daily.update_one(query, {'$set': post}, upsert=True)
+    db_members.update_one(query, {'$inc': {'prestige': 50}})
 
     val = randint(1, 100)
     print(f'Daily -> {ctx.user.name} got a {val}')
-    if val == 100:
+    if val >= 95:
         if ctx.guild is None:
             print('none guild')
             return
@@ -347,9 +347,10 @@ async def daily(ctx: discord.Interaction):
         if name == None:
             name = member.name
 
-        await member.kick(reason='Someone else won the lottery!')
+        await member.kick(reason='You were excommunicated by our Lord and Saviour, Lion Bot. We hope you enjoyed your stay.')
+        db_list.delete_one({'id': str(member.id)})
 
-        await ctx.response.send_message('You rolled a perfect 100!', ephemeral=True)
+        await ctx.response.send_message(f'You rolled a perfect {val}!', ephemeral=True)
         await ctx.channel.send(f'Congratulations, you win!\n{name} was kicked.')
     else:
         await ctx.response.send_message(f'You needed a 100. You rolled a {val}.', ephemeral=True)
@@ -396,7 +397,10 @@ async def the_list(ctx: discord.Interaction, *, command: str):
 
         if len(args) != 2:
             await usage('Usage: `/list add [name]`\nExample: `/list add @Lion Bot`')
+            return
+    
         uid = args[1][2:len(args[1]) - 1]
+        ret = 0
 
         # Add role to target
         member = ctx.guild.get_member(int(uid))
@@ -410,7 +414,6 @@ async def the_list(ctx: discord.Interaction, *, command: str):
 
         print(f'{ctx.user.name} just used /list add on {member.name}')
 
-        ret = 0
         # Add target to database
         query = {'id': uid}
         result = list(db_list.find(query))
@@ -576,8 +579,22 @@ async def debug(ctx: discord.Interaction, setting: str, arg0: str = ''):
         # db_members.update_many({'prestige_income': {'$exists': False}}, {'$set': {'prestige_income': m.prestige_income}})
         # db_members.update_many({'piety_income': {'$exists': False}}, {'$set': {'piety_income': m.piety_income}})
         await ctx.response.send_message('Updated database successfully!', ephemeral=True)
+    elif setting == 'free daily':
+        new_last = dt.datetime.now().replace(microsecond=0)
+        new_last = new_last.replace(day=new_last.day - 1)
+        db_daily.update_many({}, {'$set': {'last': str(new_last)}})
+        await ctx.response.send_message('Awarded a free /daily to everyone!')
     elif setting == 'test':
-        print(list(db_list.find({})))
+        if ctx.guild == None:
+            return
+        
+        guild_members = [int(member.id) for member in list(ctx.guild.members)]
+        list_members = [int(doc['id']) for doc in list(db_list.find({}))]
+
+        for list_member in list_members:
+            if list_member not in guild_members:
+                print(list_member, 'bruh')
+                db_list.delete_one({'id': str(list_member)})
     else:
         await ctx.response.send_message(f'"{setting}" is an invalid subcommand!', ephemeral=True)
 
