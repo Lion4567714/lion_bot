@@ -28,7 +28,7 @@ Certain events are handled by the bot asynchronously. The most important event i
 
 Some other, less interesting events that *lion_bot* listens to include:
 - `on_connect` is used to inform the bot owner when the bot will begin a log.
-- `on_ready` is used to sync client commands with each server and begin the income loop (##############################).
+- `on_ready` is used to sync client commands with each server and begin the income loop (see [Crusader Kings roleplay](#ck))
 - `on_voice_state_update` is used to inform the bot owner when someone connects to a voice channel.
 
 ### Database
