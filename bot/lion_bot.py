@@ -518,7 +518,7 @@ async def ck(ctx: discord.Interaction, *, command: str):
             db_members.update_one(query, {'$set': post})
             await ctx.response.send_message(f'Updated your disposition to {new_field}!')
         else:
-            await usage('Usage: `/ck update [name]`')
+            await usage('Usage: `/ck update [name|title|disposition] [NEW]`')
     # Print command usage
     else:
         await usage('Usage: `/ck [help|enroll|stats|update]`')
