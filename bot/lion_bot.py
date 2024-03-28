@@ -1,6 +1,7 @@
 # TODO: Track who uses /daily and how often
 # TODO: Increase odds of /daily working based on social credit
 # TODO: Republican bot sentiments
+# TODO: "React to this for a special surprise"
 
 
 ############### IMPORTS ###############
@@ -617,35 +618,49 @@ async def debug(ctx: discord.Interaction, *, command: str):
     args = command.split(' ')
     print(args)
     if args[0] == 'config_message':
+        # /debug command:config_message add "This is a message" :sinner: @Role 1 :dutiful: @Role 2 :devotedservant: @Role 3 
         # "Config messages" are messages you react to that serve some purpose, like granting roles
         # The terminology is completely made up. I have no idea what they're actually called lol
-        # if args[1] == 'add':
-            args[1] = command.split('"')[1]
-            args = args[:2] + command.split('"')[2].split(' ')[1:]  # Combine the message in quotes into one argument
-            if len(args) < 4 or len(args) % 2 == 1:    # Expecting one role for every reaction and at least one pair of those
+        if args[1] == 'add':
+            args[2] = command.split('"')[1]
+            args = args[:3] + command.split('"')[2].split(' ')[1:]  # Combine the message in quotes into one argument
+            if len(args) < 5 or len(args) % 2 == 0:    # Expecting one role for every reaction and at least one pair of those
                 await usage('/debug config_message "message" ([REACTION] [ROLE])+')
                 return
 
             print(args)
 
-            message = args[1] + '\n'
-            for i in range(2, len(args), 2):
+            message = args[2] + '\n'
+            for i in range(3, len(args), 2):
                 message += args[i] + ' -> ' + args[i + 1] + '\n'
 
             await ctx.response.send_message('Creating config message...', ephemeral=True)
             bot_message = await ctx.channel.send(message)
-            for i in range(2, len(args), 2):
+            for i in range(3, len(args), 2):
                 await bot_message.add_reaction(args[i])
 
-            post = {'id': bot_message.id}
+            post = {'id': bot_message.id, 'channel': bot_message.channel.id}
             reaction_to_role = {}
-            for i in range(2, len(args), 2):
+            for i in range(3, len(args), 2):
                 reaction_to_role[args[i]] = args[i + 1]
             post['map'] = reaction_to_role
             db_config.insert_one(post)
             print('Added config message to db_config!')
-        # elif args[1] == 'remove':
-            # print('Removed config message from db_config!')
+        elif args[1] == 'remove':
+            query = {'id': int(args[2])}
+            post = db_config.find_one(query)
+            if post == None:
+                print('Could not find config message in db_config!')
+                return
+            
+            db_config.delete_one(query)
+            channel = bot.get_channel(post['channel'])
+            if channel == None:
+                return
+            message = await channel.fetch_message(post['id'])
+            await message.delete()
+            await ctx.response.send_message('Removed config message!', ephemeral=True)
+            print('Removed config message from db_config!')
     else:
         await usage('/debug config_message')
 
