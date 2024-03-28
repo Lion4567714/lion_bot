@@ -183,7 +183,7 @@ async def on_message(message: discord.Message):
         else:
             await message.channel.send('dumbass')
 
-    response = mp_instance.process_message(message, 1)
+    response = await mp_instance.process_message(message, 1)
     if isinstance(response, mp.Silent):
         pass
     elif isinstance(response, mp.Reply):
@@ -193,7 +193,8 @@ async def on_message(message: discord.Message):
     elif isinstance(response, mp.Reaction):
         await message.add_reaction(response.emoji)
 
-    piety = await mp_instance.get_piety(message)
+    # piety = await mp_instance.get_piety(message)
+    piety = response.piety
     if piety >= 0:
         print('updating...' + str(message.author.id))
         update_piety(message.author.id, piety)
@@ -525,78 +526,99 @@ async def ck(ctx: discord.Interaction, *, command: str):
 
 
 @bot.tree.command(name='debug', description='May only be used by the bot\'s owner', guilds=guilds)
-async def debug(ctx: discord.Interaction, setting: str, arg0: str = ''):
+async def debug(ctx: discord.Interaction, *, command: str):
+    async def usage(usage_info: str) -> None:
+        await ctx.response.send_message('Usage: `' + usage_info + '`', ephemeral=True)
+
     if ctx.user.id != 307723444428996608:
         await ctx.response.send_message('You are not permitted to use this command!', ephemeral=True)
         print(f'{ctx.user.name} just tried to use /debug')
         return
 
-    if setting == 'add roles':
-        if ctx.guild is None:
-            print('add roles failed!')
-            return
-        
-        role_name = arg0
-        role = get(ctx.guild.roles, name=role_name)
-        if role is None:
-            print('couldnt find role!')
+    args = command.split(' ')
+
+    if args[0] == 'config_message':
+        args[1] = command.split('"')[1]
+        args = args[:2] + command.split('"')[2].split(' ')[1:]  # Combine the message in quotes into one argument
+        print(args)
+        if len(args) < 4 or len(args) % 2 == 1:    # Expecting one role for every reaction and at least one pair of those
+            await usage('/debug config_message "message" ([REACTION] [ROLE])+')
             return
 
-        for member in ctx.guild.members:
-            roles = member.roles
-            has_role = False
-            for irole in roles:
-                if irole.name == role_name:
-                    has_role = True
-                    break
+        message = args[1] + '\n'
+        # for i in range(len(args))
 
-            if not has_role:
-                await member.add_roles(role)
-    elif setting == 'sync':
-        print('[STATUS] Syncing commands...')
-        if arg0 == '':
-            await ctx.response.send_message('/debug sync requires another argument!\nUsage: /debug sync [global|local]', ephemeral=True)
-            return
-        elif arg0 == 'global':
-            bot.tree.clear_commands(guild=None)
-            # for guild in guilds:
-                # await bot.tree.sync(guild=guild)
-        elif arg0 == 'local':
-            bot.tree.clear_commands(guild=ctx.guild)
-            bot.tree.remove_command('ping')
-            await bot.tree.sync(guild=ctx.guild)
-        else:
-            await ctx.response.send_message('Invalid argument for /debug sync!\nUsage: /debug sync [global|local]', ephemeral=True)
-            return
-        
-        await ctx.response.send_message(f'Command tree synced!', ephemeral=True)
-        print('[STATUS] Syncing complete!')
-    elif setting == 'update database':
-        m = ms.Member(-1, 'TEST')
-        db_members.update_many({}, {'$set': {'gold': 0}})
-        db_members.update_many({}, {'$set': {'gold_income': 1.0}})
-        # db_members.update_many({'gold_income': {'$exists': False}}, {'$set': {'gold_income': m.gold_income}})
-        # db_members.update_many({'prestige_income': {'$exists': False}}, {'$set': {'prestige_income': m.prestige_income}})
-        # db_members.update_many({'piety_income': {'$exists': False}}, {'$set': {'piety_income': m.piety_income}})
-        await ctx.response.send_message('Updated database successfully!', ephemeral=True)
-    elif setting == 'free daily':
-        new_last = dt.datetime.now().replace(microsecond=0)
-        new_last = new_last.replace(day=new_last.day - 1)
-        db_daily.update_many({}, {'$set': {'last': str(new_last)}})
-        await ctx.response.send_message('Awarded a free /daily to everyone!')
-    elif setting == 'test':
-        if ctx.guild == None:
-            return
-        
-        guild_members = [int(member.id) for member in list(ctx.guild.members)]
-        list_members = [int(doc['id']) for doc in list(db_list.find({}))]
-
-        for list_member in list_members:
-            if list_member not in guild_members:
-                print(list_member, 'bruh')
-                db_list.delete_one({'id': str(list_member)})
+        await ctx.response.send_message('Creating config message...', ephemeral=True)
+        await ctx.channel.send(f'message: {args[1]}\nreaction: {args[2]}\nrole: {args[3]}')
     else:
-        await ctx.response.send_message(f'"{setting}" is an invalid subcommand!', ephemeral=True)
+        await usage('/debug config_message')
+
+    # if subcommand == 'add roles':
+    #     if ctx.guild is None:
+    #         print('add roles failed!')
+    #         return
+        
+    #     role_name = arg0
+    #     role = get(ctx.guild.roles, name=role_name)
+    #     if role is None:
+    #         print('couldnt find role!')
+    #         return
+
+    #     for member in ctx.guild.members:
+    #         roles = member.roles
+    #         has_role = False
+    #         for irole in roles:
+    #             if irole.name == role_name:
+    #                 has_role = True
+    #                 break
+
+    #         if not has_role:
+    #             await member.add_roles(role)
+    # elif subcommand == 'sync':
+    #     print('[STATUS] Syncing commands...')
+    #     if arg0 == '':
+    #         await ctx.response.send_message('/debug sync requires another argument!\nUsage: /debug sync [global|local]', ephemeral=True)
+    #         return
+    #     elif arg0 == 'global':
+    #         bot.tree.clear_commands(guild=None)
+    #         # for guild in guilds:
+    #             # await bot.tree.sync(guild=guild)
+    #     elif arg0 == 'local':
+    #         bot.tree.clear_commands(guild=ctx.guild)
+    #         bot.tree.remove_command('ping')
+    #         await bot.tree.sync(guild=ctx.guild)
+    #     else:
+    #         await ctx.response.send_message('Invalid argument for /debug sync!\nUsage: /debug sync [global|local]', ephemeral=True)
+    #         return
+        
+    #     await ctx.response.send_message(f'Command tree synced!', ephemeral=True)
+    #     print('[STATUS] Syncing complete!')
+    # elif subcommand == 'update database':
+    #     m = ms.Member(-1, 'TEST')
+    #     db_members.update_many({}, {'$set': {'gold': 0}})
+    #     db_members.update_many({}, {'$set': {'gold_income': 1.0}})
+    #     # db_members.update_many({'gold_income': {'$exists': False}}, {'$set': {'gold_income': m.gold_income}})
+    #     # db_members.update_many({'prestige_income': {'$exists': False}}, {'$set': {'prestige_income': m.prestige_income}})
+    #     # db_members.update_many({'piety_income': {'$exists': False}}, {'$set': {'piety_income': m.piety_income}})
+    #     await ctx.response.send_message('Updated database successfully!', ephemeral=True)
+    # elif subcommand == 'free daily':
+    #     new_last = dt.datetime.now().replace(microsecond=0)
+    #     new_last = new_last.replace(day=new_last.day - 1)
+    #     db_daily.update_many({}, {'$set': {'last': str(new_last)}})
+    #     await ctx.response.send_message('Awarded a free /daily to everyone!')
+    # elif subcommand == 'test':
+    #     if ctx.guild == None:
+    #         return
+        
+    #     guild_members = [int(member.id) for member in list(ctx.guild.members)]
+    #     list_members = [int(doc['id']) for doc in list(db_list.find({}))]
+
+    #     for list_member in list_members:
+    #         if list_member not in guild_members:
+    #             print(list_member, 'bruh')
+    #             db_list.delete_one({'id': str(list_member)})
+    # else:
+    #     await ctx.response.send_message(f'"{setting}" is an invalid subcommand!', ephemeral=True)
 
 
 @bot.tree.command(name='ping', description='Checks the response time of the bot\'s server', guilds=guilds)

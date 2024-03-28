@@ -7,7 +7,8 @@ from openai import OpenAI
 
 
 ########### RESPONSE TYPES ############
-class Response: pass
+class Response: 
+    piety: int
 
 
 class Silent(Response):
@@ -17,18 +18,21 @@ class Silent(Response):
 class Message(Response):
     content: str
 
-    def __init__(self, content: str):
+    def __init__(self, content: str, piety: int = -1):
         self.content = content
+        self.piety = piety
 
 
-class Reply(Message): pass
+class Reply(Message): 
+    pass
 
 
 class Reaction(Response):
     emoji: str
 
-    def __init__(self, emoji: str):
+    def __init__(self, emoji: str, piety: int = -1):
         self.emoji = emoji
+        self.piety = piety
 #######################################
 
 
@@ -102,10 +106,10 @@ Make sure the file exists and contains properly formatted emojis.
             sys.exit()
 
 
-    def process_message(self, message: discord.Message, debug_level: int = 0) -> Response:
+    async def process_message(self, message: discord.Message, debug_level: int = 0) -> Response:
         message_dict = self.message_to_dict(message)
         self.print_message(message_dict, debug_level)
-        response = self.get_response(message_dict)
+        response = await self.get_response(message)
         return response
 
 
@@ -144,8 +148,15 @@ Make sure the file exists and contains properly formatted emojis.
                 f"in {message['channel.name']}, {message['guild.name']}")
         
 
-    def get_response(self, message: dict) -> Response:
-        content = str(message['content'])
+    async def get_response(self, message: discord.Message) -> Response:
+        content = str(message.__getattribute__('content'))
+
+        piety = await self.get_piety(message)
+        if piety < 2 and piety != -1:
+            return Reaction(':piety_0:1217240690250223726', piety)
+        elif piety > 7:
+            return Reaction(':piety_5:1217240684453564447', piety)
+
         clean_message = content.lower()
         punc = ['.', ',']       
         for p in punc:
