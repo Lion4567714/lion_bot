@@ -74,9 +74,9 @@ signal.signal(signal.SIGINT, signal_handler)
 
 
 # Discord Client
-intents = discord.Intents.default()
-intents.members = True
-intents.message_content = True
+intents = discord.Intents.all()
+# intents.members = True
+# intents.message_content = True
 bot = commands.Bot(command_prefix='/', intents=intents)
 
 # Logging
@@ -122,6 +122,7 @@ except Exception as e:
     # print(e)
 
 db = mongo_client.my_database
+db_config = db['config']
 db_posts = db['posts']
 db_members = db['members']
 db_daily = db['daily']
@@ -234,6 +235,84 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
         await message_owner(f'{member} joined voice!')
     elif before.channel != None and after.channel == None:
         print(f'{member} left voice!')
+
+
+@bot.event
+async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
+    # Make sure the bot isn't reacting to it's own reactions
+    if bot.user == None:
+        print('[WARNING] on_raw_reaction_add(): bot is not logged in!')
+        return
+    elif payload.user_id == bot.user.id:
+        return
+    
+    # Make sure there are no None fields that will mess with anything
+    if payload.guild_id == None:
+        print('[ERROR] on_raw_reaction_add(): guild_id is missing!')
+        return
+    guild = bot.get_guild(payload.guild_id)
+    if guild == None:
+        print('[ERROR] on_raw_reaction_add(): guild could not be found!')
+        return
+    member = guild.get_member(payload.user_id)
+    if member == None:
+        print('[ERROR] on_raw_reaction_add(): member could not be found!')
+        return
+
+    # Get config message information
+    query = {'id': payload.message_id}
+    post = db_config.find_one(query)
+    if post == None:
+        return
+    
+    # Get the role from the database post
+    emoji = '<:' + payload.emoji._as_reaction() + '>'
+    role_id = int(post['map'][emoji][3:-1])
+    role = guild.get_role(role_id)
+    if role == None:
+        print('[ERROR] on_raw_reaction_add(): role could not be found!')
+        return
+    
+    await member.add_roles(role)
+
+
+@bot.event
+async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
+    # Make sure the bot isn't reacting to it's own reactions
+    if bot.user == None:
+        print('[WARNING] on_raw_reaction_add(): bot is not logged in!')
+        return
+    elif payload.user_id == bot.user.id:
+        return
+    
+    # Make sure there are no None fields that will mess with anything
+    if payload.guild_id == None:
+        print('[ERROR] on_raw_reaction_add(): guild_id is missing!')
+        return
+    guild = bot.get_guild(payload.guild_id)
+    if guild == None:
+        print('[ERROR] on_raw_reaction_add(): guild could not be found!')
+        return
+    member = guild.get_member(payload.user_id)
+    if member == None:
+        print('[ERROR] on_raw_reaction_add(): member could not be found!')
+        return
+
+    # Get config message information
+    query = {'id': payload.message_id}
+    post = db_config.find_one(query)
+    if post == None:
+        return
+    
+    # Get the role from the database post
+    emoji = '<:' + payload.emoji._as_reaction() + '>'
+    role_id = int(post['map'][emoji][3:-1])
+    role = guild.get_role(role_id)
+    if role == None:
+        print('[ERROR] on_raw_reaction_add(): role could not be found!')
+        return
+    
+    await member.remove_roles(role)
 #######################################
 
 
@@ -529,26 +608,44 @@ async def debug(ctx: discord.Interaction, *, command: str):
     async def usage(usage_info: str) -> None:
         await ctx.response.send_message('Usage: `' + usage_info + '`', ephemeral=True)
 
+    # Only the bot owner is allowed to use this command
     if ctx.user.id != 307723444428996608:
         await ctx.response.send_message('You are not permitted to use this command!', ephemeral=True)
         print(f'{ctx.user.name} just tried to use /debug')
         return
 
     args = command.split(' ')
-
+    print(args)
     if args[0] == 'config_message':
-        args[1] = command.split('"')[1]
-        args = args[:2] + command.split('"')[2].split(' ')[1:]  # Combine the message in quotes into one argument
-        print(args)
-        if len(args) < 4 or len(args) % 2 == 1:    # Expecting one role for every reaction and at least one pair of those
-            await usage('/debug config_message "message" ([REACTION] [ROLE])+')
-            return
+        # "Config messages" are messages you react to that serve some purpose, like granting roles
+        # The terminology is completely made up. I have no idea what they're actually called lol
+        # if args[1] == 'add':
+            args[1] = command.split('"')[1]
+            args = args[:2] + command.split('"')[2].split(' ')[1:]  # Combine the message in quotes into one argument
+            if len(args) < 4 or len(args) % 2 == 1:    # Expecting one role for every reaction and at least one pair of those
+                await usage('/debug config_message "message" ([REACTION] [ROLE])+')
+                return
 
-        message = args[1] + '\n'
-        # for i in range(len(args))
+            print(args)
 
-        await ctx.response.send_message('Creating config message...', ephemeral=True)
-        await ctx.channel.send(f'message: {args[1]}\nreaction: {args[2]}\nrole: {args[3]}')
+            message = args[1] + '\n'
+            for i in range(2, len(args), 2):
+                message += args[i] + ' -> ' + args[i + 1] + '\n'
+
+            await ctx.response.send_message('Creating config message...', ephemeral=True)
+            bot_message = await ctx.channel.send(message)
+            for i in range(2, len(args), 2):
+                await bot_message.add_reaction(args[i])
+
+            post = {'id': bot_message.id}
+            reaction_to_role = {}
+            for i in range(2, len(args), 2):
+                reaction_to_role[args[i]] = args[i + 1]
+            post['map'] = reaction_to_role
+            db_config.insert_one(post)
+            print('Added config message to db_config!')
+        # elif args[1] == 'remove':
+            # print('Removed config message from db_config!')
     else:
         await usage('/debug config_message')
 
