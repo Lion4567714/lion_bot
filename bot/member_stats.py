@@ -10,21 +10,21 @@ class Rank(Enum):
 
 
 prestige_levels = {
-    0: '<:prestige_0:1217240658985750709>',
-    1: '<:prestige_1:1217240658058674277>',
-    2: '<:prestige_2:1217240657039593643>',
-    3: '<:prestige_3:1217240655785496667>',
-    4: '<:prestige_4:1217240654149713971>',
-    5: '<:prestige_5:1217240652576850061>',
+    0: '<:disgraced:1217240658985750709>',
+    1: '<:established:1217240658058674277>',
+    2: '<:distinguished:1217240657039593643>',
+    3: '<:illustrious:1217240655785496667>',
+    4: '<:exaltedamongmen:1217240654149713971>',
+    5: '<:thelivinglegend:1217240652576850061>',
 }
 
 piety_levels = {
-    0: '<:piety_0:1217240690250223726>',
-    1: '<:piety_1:1217240689012641912>',
-    2: '<:piety_2:1217240688064860200>',
-    3: '<:piety_3:1217240686475219036>',
-    4: '<:piety_4:1217240685812387991>',
-    5: '<:piety_5:1217240684453564447>',
+    0: '<:sinner:1217240690250223726>',
+    1: '<:dutiful:1217240689012641912>',
+    2: '<:faithful:1217240688064860200>',
+    3: '<:devotedservant:1217240686475219036>',
+    4: '<:paragonofvirtue:1217240685812387991>',
+    5: '<:religiousicon:1217240684453564447>',
 }
 
 
@@ -54,11 +54,11 @@ class Member:
             self.gold_income = arg0.setdefault('gold_income', 1.0)
             # self.prestige_level = arg0.setdefault('prestige_level')
             self.prestige = arg0['prestige']
-            self.prestige_level = 0 if self.prestige < 0 else int(self.prestige / 500) + 1
+            self.prestige_level = 0 if self.prestige < 0 else min(int(self.prestige / 500) + 1, 5)
             self.prestige_income = arg0.setdefault('prestige_income', 0.2)
             # self.piety_level = arg0.setdefault('piety_level')
             self.piety = arg0['piety']
-            self.piety_level = 0 if self.piety < 0 else int(self.piety / 500) + 1
+            self.piety_level = 0 if self.piety < 0 else min(int(self.piety / 500) + 1, 5)
             self.piety_income = arg0.setdefault('piety_income', 0.0)
 
 

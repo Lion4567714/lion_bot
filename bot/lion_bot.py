@@ -192,12 +192,11 @@ async def on_message(message: discord.Message):
         await message.channel.send(response.content)
     elif isinstance(response, mp.Reaction):
         await message.add_reaction(response.emoji)
-
-    # piety = await mp_instance.get_piety(message)
+        
     piety = response.piety
     if piety >= 0:
         print('updating...' + str(message.author.id))
-        update_piety(message.author.id, piety)
+        update_piety(message.author.id, piety)    
 
 
 def update_piety(uid: int, piety: int) -> None:
@@ -384,13 +383,13 @@ async def the_list(ctx: discord.Interaction, *, command: str):
         user = ctx.user.id
         user = ctx.guild.get_member(user)
         if politburo_role not in user.roles and party_role not in user.roles:
-            ctx.response.send_message('You are not allowed to use this command!\nAlerting the authorities...', ephemeral=True)
+            await ctx.response.send_message('You are not allowed to use this command!\nAlerting the authorities...', ephemeral=True)
             politburo_channel = ctx.guild.get_channel(1206325612785045534)
             politburo_channel.send(f'{user.name} just tried doing /list ' + command + '!')
             print('/list add -> ' + command)
             return
         elif politburo_role not in user.roles:
-            ctx.response.send_message('You are allowed to use this command, but you are not on the council.\nInforming the politburo...')
+            await ctx.response.send_message('You are allowed to use this command, but you are not on the council.\nInforming the politburo...')
             politburo_channel = ctx.guild.get_channel(1206325612785045534)
             politburo_channel.send(f'{user.name} just tried doing /list ' + command + '!')
             print('/list add -> ' + command)
