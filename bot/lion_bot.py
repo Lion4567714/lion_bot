@@ -412,29 +412,43 @@ async def the_list(ctx: discord.Interaction, *, command: str):
     async def usage(tip: str) -> None:
         await ctx.response.send_message(tip, ephemeral=True)
 
+    if ctx.guild == None:
+        printe('ctx.guild is None!')
+        return
+
     args = command.split(' ')
     if len(args) == 0:
         await usage('Usage: `/list [help|add] ...`')
 
     politburo_role = ctx.guild.get_role(1205643157732073512)
     party_role = ctx.guild.get_role(1205643117626392626)
-    rabble_role = ctx.guild.get_role(1205643020502958080)
+    # rabble_role = ctx.guild.get_role(1205643020502958080)
 
     subcommand = args[0]
     # Add target to the list
     if subcommand == 'add':
         user = ctx.user.id
         user = ctx.guild.get_member(user)
+        if user == None:
+            printe('User is none!')
+            return
+
+        politburo_channel = ctx.guild.get_channel(1206325612785045534)
+        if politburo_channel == None:
+            printe('Could not find poliburo_channel!')
+            return
+        if not isinstance(politburo_channel, discord.TextChannel):
+            printe('politburo_channel type is not the right type...?')
+            return
+
         if politburo_role not in user.roles and party_role not in user.roles:
             await ctx.response.send_message('You are not allowed to use this command!\nAlerting the authorities...', ephemeral=True)
-            politburo_channel = ctx.guild.get_channel(1206325612785045534)
-            politburo_channel.send(f'{user.name} just tried doing /list ' + command + '!')
+            await politburo_channel.send(f'{user.name} just tried doing /list ' + command + '!')
             printp('/list add -> ' + command)
             return
         elif politburo_role not in user.roles:
             await ctx.response.send_message('You are allowed to use this command, but you are not on the council.\nInforming the politburo...')
-            politburo_channel = ctx.guild.get_channel(1206325612785045534)
-            politburo_channel.send(f'{user.name} just tried doing /list ' + command + '!')
+            await politburo_channel.send(f'{user.name} just tried doing /list ' + command + '!')
             printp('/list add -> ' + command)
             return
 
@@ -447,10 +461,17 @@ async def the_list(ctx: discord.Interaction, *, command: str):
 
         # Add role to target
         member = ctx.guild.get_member(int(uid))
+        if member == None:
+            printe('member is None!')
+            return
+        list_role = ctx.guild.get_role(1216854346700951715)
+        if list_role == None:
+            printe('list_role is None!')
+            return
+
         if politburo_role in member.roles:
             await ctx.response.send_message(f'Hey <@{uid}>, <@{ctx.user.id}> just tried to add you to the list. Their fate is in your hands.')
             return
-        list_role = ctx.guild.get_role(1216854346700951715)
         if list_role not in member.roles:
             await member.add_roles(list_role)
             ret += 2
@@ -597,11 +618,16 @@ async def debug(ctx: discord.Interaction, *, command: str):
                 message += args[i] + ' -> ' + args[i + 1] + '\n'
 
             await ctx.response.send_message('Creating config message...', ephemeral=True)
+            if not isinstance(ctx.channel, discord.TextChannel):
+                printe('ctx.channel is not TextChannel!')
+                return
             bot_message = await ctx.channel.send(message)
             for i in range(3, len(args), 2):
                 await bot_message.add_reaction(args[i])
 
-            post = {'id': bot_message.id, 'channel': bot_message.channel.id}
+            post = {}
+            post['id'] = bot_message.id
+            post['channel'] = bot_message.channel.id
             reaction_to_role = {}
             for i in range(3, len(args), 2):
                 reaction_to_role[args[i]] = args[i + 1]
@@ -617,7 +643,8 @@ async def debug(ctx: discord.Interaction, *, command: str):
             
             db_config.delete_one(query)
             channel = bot.get_channel(post['channel'])
-            if channel == None:
+            if not isinstance(channel, discord.TextChannel):
+                printe('bot did not find a text channel!')
                 return
             message = await channel.fetch_message(post['id'])
             await message.delete()
