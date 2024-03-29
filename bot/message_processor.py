@@ -5,6 +5,7 @@ import pytz
 import random
 from openai import OpenAI
 from response import *
+from printing import *
 
 tracked = [
     'author.global_name',
@@ -67,8 +68,7 @@ class MessageProcessor:
                 self.emojis[line[first:second]] = line
             file.close()
         except Exception as e:
-            print("""
-[ERROR]
+            printe("""
 Something went wrong when trying to read ./bot/messaging/emojis!
 Make sure the file exists and contains properly formatted emojis.
                   """)
@@ -93,7 +93,7 @@ Make sure the file exists and contains properly formatted emojis.
                 except Exception as e:
                     attr = None
                     if subfield != 'nick' and subfield != 'name' and subfield != 'id':
-                        print(f'{subfield} could not be found in this message!')
+                        printw(f'{subfield} could not be found in this message!')
             output[field] = attr
         return output
 
@@ -113,7 +113,7 @@ Make sure the file exists and contains properly formatted emojis.
         if debug_level == 0:
             pass
         elif debug_level == 1:
-            print(f"[{d.strftime(time_format)}]: {name} said \"{message['content']}\" " + 
+            printl(f"[{d.strftime(time_format)}]: {name} said \"{message['content']}\" " + 
                 f"in {message['channel.name']}, {message['guild.name']}")
         
 
@@ -180,11 +180,11 @@ Make sure the file exists and contains properly formatted emojis.
             content.replace('<@1199041303221121025>', 'lion bot')
         if message.type == discord.MessageType.reply:
             if message.reference == None:
-                print('[ERROR] message.reference in message_processor.py is None!')
+                printe('message.reference is None!')
                 return -1
             m_id = message.reference.message_id
             if m_id == None:
-                print('m_id in message_processor.py is None!')
+                printe('m_id is None!')
                 return -1
             ref = await message.channel.fetch_message(m_id)
             if ref.author.id == 1199041303221121025:
@@ -194,12 +194,12 @@ Make sure the file exists and contains properly formatted emojis.
         if not is_related:
             return -1
         
-        print('Message is related to lion bot!')
+        printp('Message is related to lion bot!')
 
         # Submit the message to OpenAI for judgement
         preamble = 'Pretend you are a God named "Lion Bot". Rate the following message with a grade of how "pious" the message is on a scale of 1 to 10. 1 being sinner and 10 being devout. Respond with only a number: '
         if self.ai_client == None:
-            print('[ERROR] ai_client in message_processor.py is None!')
+            printe('ai_client is None!')
             return -1
         completion = self.ai_client.chat.completions.create(
             messages = [{
@@ -214,13 +214,12 @@ Make sure the file exists and contains properly formatted emojis.
         if response == None:
             return -1
         if len(response) > 1 or not response.isnumeric():
-            print('Invalid response from OpenAI: ' + response)
+            printw('Invalid response from OpenAI: ' + response)
         response_int = -1
         try:
             response_int = int(response) - 1
         except Exception as e:
-            print('Invalid response from OpenAI: ' + response)
-            print(e)
+            printe('Invalid response from OpenAI: ' + response, e, False)
 
-        print('Piety: ' + str(response_int))
+        printp('Piety: ' + str(response_int))
         return response_int

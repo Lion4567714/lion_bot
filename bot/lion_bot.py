@@ -2,6 +2,7 @@
 # TODO: Increase odds of /daily working based on social credit
 # TODO: Republican bot sentiments
 # TODO: "React to this for a special surprise"
+# TODO: DM everyone when the bot is turned off so they can let me know i turned the bot off 
 
 
 ############### IMPORTS ###############
@@ -29,20 +30,8 @@ import signal
 import ast
 import datetime as dt
 
-import asyncio
-import os
+from printing import *
 #######################################
-
-
-############## WORK ZONE ##############
-
-#######################################
-
-
-def print_error(path: str, e: Exception, is_fatal: bool = False) -> None:
-    print(f'[ERROR] Something went wrong when trying to read {path}!')
-    print(e)
-    if is_fatal: sys.exit()
 
 
 # Load logs
@@ -54,7 +43,7 @@ try:
     mp_instance.activity = ast.literal_eval(file.read())
     file.close()
 except Exception as e:
-    print_error(path, e, True)
+    printe('Something went wrong when using ' + path, e, True)
 
 
 ############## SIGNALS ################
@@ -66,7 +55,7 @@ def signal_handler(sig, frame):
         file.write(str(mp_instance.activity))
         file.close()
     except Exception as e:
-        print_error(path, e, True)
+        printe('Something went wrong when using ' + path, e, True)
 
     sys.exit()
 
@@ -91,7 +80,7 @@ try:
     guild_ids = file.read().splitlines()
     file.close()
 except Exception as e:
-    print_error(path, e, True)
+    printe('Something went wrong when using ' + path, e, True)
 
 guilds = []
 for guild in guild_ids:
@@ -105,7 +94,7 @@ try:
     mongo = file.read().splitlines()
     file.close()
 except Exception as e:
-    print_error(path, e, True)
+    printe('Something went wrong when using ' + path, e, True)
 
 mongo_user = urllib.parse.quote(mongo[0])
 mongo_pass = urllib.parse.quote(mongo[1])
@@ -117,10 +106,9 @@ connected_to_mongo = False
 try:
     mongo_client.admin.command('ping')
     connected_to_mongo = True
-    print("[STATUS] Ping successful. Connected to MongoDB!")
+    prints('Ping successful. Connected to MongoDB!')
 except Exception as e:
-    print("[STATUS] Ping unsuccessful. Continuing without MongoDB...")
-    # print(e)
+    printe('MongoDB ping unsuccessful!', e, True)
 
 db = mongo_client.my_database
 db_config = db['config']
@@ -139,7 +127,7 @@ async def update_income():
         {'$set': {'prestige': {'$add': ['$prestige', '$prestige_income']}}},
         {'$set': {'piety': {'$add': ['$piety', '$piety_income']}}},
     ])
-    print('Awarded income!')
+    printp('Awarded income!')
 
 
 # DM owner for errors and updates
@@ -150,8 +138,8 @@ async def message_owner(content: str) -> None:
 
 @bot.event
 async def on_connect():
-    print(f'[STATUS] Connected to Discord as {bot.user}!')
-    print("----- BEGIN LOG -----")
+    prints(f'Connected to Discord as {bot.user}!')
+    printp("----- BEGIN LOG -----")
 
 
 @bot.event
@@ -161,7 +149,7 @@ async def on_ready():
 
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name='you'))
 
-    print(f'[STATUS] Bot is ready!')
+    prints(f'Bot is ready!')
     update_income.start()
 
 
@@ -197,7 +185,6 @@ async def on_message(message: discord.Message):
         
     piety = response.piety
     if piety >= 0:
-        print('updating...' + str(message.author.id))
         update_piety(message.author.id, piety)    
 
 
@@ -217,17 +204,16 @@ def update_piety(uid: int, piety: int) -> None:
         piety_inc = 500
 
     if piety_inc != 0:
-        print('here')
         query = {'id': uid}
         post = {'piety': piety_inc}
         db_members.update_one(query, {'$inc': post})
-        print('Modified piety by ' + str(piety_inc))
+        printp('Modified piety by ' + str(piety_inc))
 
 
 @bot.event
 async def on_voice_state_update(member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
     if before.channel == None and after.channel != None:
-        print(f'{member} joined voice!')    
+        printp(f'{member} joined voice!')    
 
         # Ping me when someone joins voice
         # Do not ping if I am already in voice
@@ -235,7 +221,7 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
             if m.id == 307723444428996608: return
         await message_owner(f'{member} joined voice!')
     elif before.channel != None and after.channel == None:
-        print(f'{member} left voice!')
+        printp(f'{member} left voice!')
 
 
 @bot.event
@@ -251,22 +237,22 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
 async def on_raw_reaction(payload: discord.RawReactionActionEvent, is_adding: bool):
     # Make sure the bot isn't reacting to it's own reactions
     if bot.user == None:
-        print('[WARNING] on_raw_reaction(): bot is not logged in!')
+        printw('Bot is not logged in!')
         return
     elif payload.user_id == bot.user.id:
         return
     
     # Make sure there are no None fields that will mess with anything
     if payload.guild_id == None:
-        print('[ERROR] on_raw_reaction(): guild_id is missing!')
+        printe('guild_id is missing!')
         return
     guild = bot.get_guild(payload.guild_id)
     if guild == None:
-        print('[ERROR] on_raw_reaction(): guild could not be found!')
+        printe('guild could not be found!')
         return
     member = guild.get_member(payload.user_id)
     if member == None:
-        print('[ERROR] on_raw_reaction(): member could not be found!')
+        printe('member could not be found!')
         return
 
     # Get config message information
@@ -280,7 +266,7 @@ async def on_raw_reaction(payload: discord.RawReactionActionEvent, is_adding: bo
     role_id = int(post['map'][emoji][3:-1])
     role = guild.get_role(role_id)
     if role == None:
-        print('[ERROR] on_raw_reaction(): role could not be found!')
+        printe('role could not be found!')
         return
     
     if is_adding:
@@ -321,10 +307,10 @@ The only rule is that <@1199041303221121025> is the Pope. Praise and revere him,
 async def daily(ctx: discord.Interaction): 
     # Ensure everything has gone right
     if ctx.guild is None:
-        print('/daily: guild is None!')
+        printe('guild is None!')
         return
     if not isinstance(ctx.channel, discord.channel.TextChannel):
-        print('/daily: channel was not a text channel!')
+        printe('channel was not a text channel!')
         return
     
     m_id = ctx.user.id
@@ -390,10 +376,10 @@ async def daily(ctx: discord.Interaction):
     db_members.update_one(query, {'$inc': {'prestige': 50}})
 
     val = randint(1, 100)
-    print(f'Daily -> {ctx.user.name} got a {val}')
+    printp(f'Daily -> {ctx.user.name} got a {val}')
     if val >= 95:
         if ctx.guild is None:
-            print('none guild')
+            printe('none guild')
             return
         
         the_list = list(db_list.find({}))
@@ -443,13 +429,13 @@ async def the_list(ctx: discord.Interaction, *, command: str):
             await ctx.response.send_message('You are not allowed to use this command!\nAlerting the authorities...', ephemeral=True)
             politburo_channel = ctx.guild.get_channel(1206325612785045534)
             politburo_channel.send(f'{user.name} just tried doing /list ' + command + '!')
-            print('/list add -> ' + command)
+            printp('/list add -> ' + command)
             return
         elif politburo_role not in user.roles:
             await ctx.response.send_message('You are allowed to use this command, but you are not on the council.\nInforming the politburo...')
             politburo_channel = ctx.guild.get_channel(1206325612785045534)
             politburo_channel.send(f'{user.name} just tried doing /list ' + command + '!')
-            print('/list add -> ' + command)
+            printp('/list add -> ' + command)
             return
 
         if len(args) != 2:
@@ -469,7 +455,7 @@ async def the_list(ctx: discord.Interaction, *, command: str):
             await member.add_roles(list_role)
             ret += 2
 
-        print(f'{ctx.user.name} just used /list add on {member.name}')
+        printp(f'{ctx.user.name} just used /list add on {member.name}')
 
         # Add target to database
         query = {'id': uid}
@@ -589,11 +575,11 @@ async def debug(ctx: discord.Interaction, *, command: str):
     # Only the bot owner is allowed to use this command
     if ctx.user.id != 307723444428996608:
         await ctx.response.send_message('You are not permitted to use this command!', ephemeral=True)
-        print(f'{ctx.user.name} just tried to use /debug')
+        printw(f'{ctx.user.name} just tried to use /debug')
         return
 
     args = command.split(' ')
-    print(args)
+    printp(args)
     if args[0] == 'config_message':
         # "Config messages" are messages you react to that serve some purpose, like granting roles
         # The terminology is completely made up. I have no idea what they're actually called lol
@@ -604,7 +590,7 @@ async def debug(ctx: discord.Interaction, *, command: str):
                 await usage('/debug config_message "message" ([REACTION] [ROLE])+')
                 return
 
-            print(args)
+            printp(args)
 
             message = args[2] + '\n'
             for i in range(3, len(args), 2):
@@ -621,12 +607,12 @@ async def debug(ctx: discord.Interaction, *, command: str):
                 reaction_to_role[args[i]] = args[i + 1]
             post['map'] = reaction_to_role
             db_config.insert_one(post)
-            print('Added config message to db_config!')
+            printp('Added config message to db_config!')
         elif args[1] == 'remove':
             query = {'id': int(args[2])}
             post = db_config.find_one(query)
             if post == None:
-                print('Could not find config message in db_config!')
+                printe('Could not find config message in db_config!')
                 return
             
             db_config.delete_one(query)
@@ -636,7 +622,7 @@ async def debug(ctx: discord.Interaction, *, command: str):
             message = await channel.fetch_message(post['id'])
             await message.delete()
             await ctx.response.send_message('Removed config message!', ephemeral=True)
-            print('Removed config message from db_config!')
+            printp('Removed config message from db_config!')
     else:
         await usage('/debug config_message')
 
@@ -716,16 +702,16 @@ async def ping(ctx: discord.Interaction):
 @bot.tree.command(name='disconnect', description='Disconnects the specified user from voice', guilds=guilds)
 async def disconnect(ctx: discord.Interaction, member: discord.Member):
     # print(ctx.author)
-    print(ctx.user.name + " used disconnect")
+    printp(ctx.user.name + " used disconnect")
 
     if ctx.message != None:
-        print('it worked')
-        print(ctx.message)
-        print(ctx.message.author)
-        print(ctx.message.author.id)
+        printp('it worked')
+        printp(ctx.message)
+        printp(ctx.message.author)
+        printp(ctx.message.author.id)
     
 
-    print(member.id)
+    printp(member.id)
     # brown id = 308437138855428117
     # lion id = 307723444428996608
 
