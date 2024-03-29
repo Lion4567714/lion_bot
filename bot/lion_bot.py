@@ -240,63 +240,33 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
 
 @bot.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
-    # Make sure the bot isn't reacting to it's own reactions
-    if bot.user == None:
-        print('[WARNING] on_raw_reaction_add(): bot is not logged in!')
-        return
-    elif payload.user_id == bot.user.id:
-        return
-    
-    # Make sure there are no None fields that will mess with anything
-    if payload.guild_id == None:
-        print('[ERROR] on_raw_reaction_add(): guild_id is missing!')
-        return
-    guild = bot.get_guild(payload.guild_id)
-    if guild == None:
-        print('[ERROR] on_raw_reaction_add(): guild could not be found!')
-        return
-    member = guild.get_member(payload.user_id)
-    if member == None:
-        print('[ERROR] on_raw_reaction_add(): member could not be found!')
-        return
-
-    # Get config message information
-    query = {'id': payload.message_id}
-    post = db_config.find_one(query)
-    if post == None:
-        return
-    
-    # Get the role from the database post
-    emoji = '<:' + payload.emoji._as_reaction() + '>'
-    role_id = int(post['map'][emoji][3:-1])
-    role = guild.get_role(role_id)
-    if role == None:
-        print('[ERROR] on_raw_reaction_add(): role could not be found!')
-        return
-    
-    await member.add_roles(role)
+    await on_raw_reaction(payload, True)
 
 
 @bot.event
 async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
+    await on_raw_reaction(payload, False)
+
+
+async def on_raw_reaction(payload: discord.RawReactionActionEvent, is_adding: bool):
     # Make sure the bot isn't reacting to it's own reactions
     if bot.user == None:
-        print('[WARNING] on_raw_reaction_add(): bot is not logged in!')
+        print('[WARNING] on_raw_reaction(): bot is not logged in!')
         return
     elif payload.user_id == bot.user.id:
         return
     
     # Make sure there are no None fields that will mess with anything
     if payload.guild_id == None:
-        print('[ERROR] on_raw_reaction_add(): guild_id is missing!')
+        print('[ERROR] on_raw_reaction(): guild_id is missing!')
         return
     guild = bot.get_guild(payload.guild_id)
     if guild == None:
-        print('[ERROR] on_raw_reaction_add(): guild could not be found!')
+        print('[ERROR] on_raw_reaction(): guild could not be found!')
         return
     member = guild.get_member(payload.user_id)
     if member == None:
-        print('[ERROR] on_raw_reaction_add(): member could not be found!')
+        print('[ERROR] on_raw_reaction(): member could not be found!')
         return
 
     # Get config message information
@@ -306,14 +276,17 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
         return
     
     # Get the role from the database post
-    emoji = '<:' + payload.emoji._as_reaction() + '>'
+    emoji = str(payload.emoji)
     role_id = int(post['map'][emoji][3:-1])
     role = guild.get_role(role_id)
     if role == None:
-        print('[ERROR] on_raw_reaction_add(): role could not be found!')
+        print('[ERROR] on_raw_reaction(): role could not be found!')
         return
     
-    await member.remove_roles(role)
+    if is_adding:
+        await member.add_roles(role)
+    else:
+        await member.remove_roles(role)
 #######################################
 
 
@@ -376,6 +349,10 @@ async def daily(ctx: discord.Interaction):
 
     target_difference = 60 * 60 * 4     # 4 hours
     diff_seconds = 24 * 60 * 60 * difference.days + difference.seconds
+
+    ###################################################################################
+    if ctx.user.id == 308437138855428117:
+        target_difference = 0
 
     if diff_seconds < target_difference:
         pretty_future = target_difference - diff_seconds
@@ -618,10 +595,9 @@ async def debug(ctx: discord.Interaction, *, command: str):
     args = command.split(' ')
     print(args)
     if args[0] == 'config_message':
-        # /debug command:config_message add "This is a message" :sinner: @Role 1 :dutiful: @Role 2 :devotedservant: @Role 3 
         # "Config messages" are messages you react to that serve some purpose, like granting roles
         # The terminology is completely made up. I have no idea what they're actually called lol
-        if args[1] == 'add':
+        if args[1] == 'create':
             args[2] = command.split('"')[1]
             args = args[:3] + command.split('"')[2].split(' ')[1:]  # Combine the message in quotes into one argument
             if len(args) < 5 or len(args) % 2 == 0:    # Expecting one role for every reaction and at least one pair of those
