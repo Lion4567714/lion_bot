@@ -50,23 +50,6 @@ except Exception as e:
     printe('Something went wrong when using ' + path, e, True)
 
 
-############## SIGNALS ################
-def signal_handler(sig, frame):
-    try:
-        # Log activity
-        path = './bot/messaging/activity'
-        file = open(path, 'w')
-        file.write(str(mp_instance.activity))
-        file.close()
-    except Exception as e:
-        printe('Something went wrong when using ' + path, e, True)
-
-    sys.exit()
-
-signal.signal(signal.SIGINT, signal_handler)
-#######################################
-
-
 # Discord Client
 intents = discord.Intents.all()
 intents.guilds = True
@@ -121,6 +104,26 @@ db_daily = db['daily']
 db_list = db['the list']
 
 ck = ck_class(db['members'])
+#######################################
+
+
+############## SIGNALS ################
+def signal_handler(sig, frame):
+    path = './bot/messaging/activity'
+    try:
+        # Save ck stuff
+        ck.backup()
+
+        # Log activity
+        file = open(path, 'w')
+        file.write(str(mp_instance.activity))
+        file.close()
+    except Exception as e:
+        printe('Something went wrong when using ' + path, e, True)
+
+    sys.exit()
+
+signal.signal(signal.SIGINT, signal_handler)
 #######################################
 
 

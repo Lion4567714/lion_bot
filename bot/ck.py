@@ -35,17 +35,17 @@ class ck:
     }
 
 
-    class Rank(Enum):
-        Count = 0
-        Duke = 1
-        King = 2
-        Emperor = 3
-
-
     class Member:
+        class Rank(Enum):
+            Count = 0
+            Duke = 1
+            King = 2
+            Emperor = 3
+
+
         uid: int
 
-        rank: Enum
+        rank: Rank
         name: str
         title: str
         disposition: str
@@ -100,7 +100,7 @@ class ck:
                 return
 
             self.uid = d['uid']
-            self.rank = d.setdefault('rank', ck.Rank.Count)
+            self.rank = self.Rank(d.setdefault('rank', 0))
             self.name = d['name']
             self.title = d.setdefault('title', '')
             self.disposition = d.setdefault('disposition', '')
@@ -125,12 +125,12 @@ class ck:
             if self.rank.name != None:
                 output += f'{self.rank.name} '
             output += f'{self.name}'
-            if self.title != None:
+            if self.title != '':
                 output += f' \"{self.title}\"'
             output += '**'
 
             # Second line (disposition)
-            if self.disposition != None:
+            if self.disposition != '':
                 output += f'\n> *{self.disposition}*'
 
             # Third line (stats)
@@ -173,11 +173,14 @@ class ck:
 
 
     def backup(self, uid: int = -1) -> None:
-        if uid == -1:
-            self.collection.replace_one({'id': id}, self.members[uid].to_dict())
-        else:
-            for uid in self.members:
-                self.collection.replace_one({'id': uid}, self.members[uid].to_dict())
+        try:
+            if uid != -1:
+                self.collection.replace_one({'uid': uid}, self.members[uid].to_dict(), upsert=True)
+            else:
+                for uid_loop in self.members:
+                    self.collection.replace_one({'uid': uid_loop}, self.members[uid_loop].to_dict(), upsert=True)
+        except Exception as e:
+            printe('error when trying to do a backup!', e, False)
 
 
     def add_new_member(self, member: Member) -> None:

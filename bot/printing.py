@@ -2,6 +2,7 @@ import inspect
 from typing import Union
 from colorama import Fore, Style
 import sys
+import traceback
 
 
 def __printc__(message, color: str = Style.RESET_ALL) -> None:
@@ -17,7 +18,8 @@ def printe(message: str, e: Union[Exception, None] = None, is_fatal: bool = Fals
     message = f'[ERROR] {inspect.stack()[1].function}(): {message}'
     __printc__(message, Fore.RED)
     if e != None:
-        __printc__(e, Fore.RED)
+        # __printc__(e, Fore.RED)
+        __printc__(traceback.format_exc(), Fore.RED)
     if is_fatal:
         sys.exit()
 
