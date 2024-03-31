@@ -3,34 +3,38 @@
 # TODO: Republican bot sentiments
 # TODO: "React to this for a special surprise"
 # TODO: DM everyone when the bot is turned off so they can let me know i turned the bot off 
+# TODO: Low enough piety = excommunication/kicked
+# TODO: Spend prestige to slander others
+# TODO: Higher prestige rank (army size) determines insult quality
+# TODO: Spend gold to build buildings
+# TODO: Rank determines how high you are on the right
+# TODO: Lower piety = whiter color
 
 
 ############### IMPORTS ###############
+# Discord
 import discord
-from discord.ext import commands
-from discord.ext import tasks
-from discord.utils import get
-
+from discord.ext import commands, tasks
 import logging
 
+# MongoDB
 import pymongo
 import pymongo.errors
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
-
-import sys
 import urllib.parse
 
-import message_processor as mp
-import member_stats as ms
-
-from random import random
-from random import randint
+# Other
+import sys
 import signal
 import ast
 import datetime as dt
+from random import random, randint
 
+# Local
 from printing import *
+import message_processor as mp
+from ck import ck as ck_class
 #######################################
 
 
@@ -65,8 +69,7 @@ signal.signal(signal.SIGINT, signal_handler)
 
 # Discord Client
 intents = discord.Intents.all()
-# intents.members = True
-# intents.message_content = True
+intents.guilds = True
 bot = commands.Bot(command_prefix='/', intents=intents)
 
 # Logging
@@ -113,21 +116,19 @@ except Exception as e:
 db = mongo_client.my_database
 db_config = db['config']
 db_posts = db['posts']
-db_members = db['members']
+# db_members = db['members']
 db_daily = db['daily']
 db_list = db['the list']
+
+ck = ck_class(db['members'])
 #######################################
 
 
 ############### EVENTS ################
 @tasks.loop(hours = 4)
 async def update_income():
-    db_members.update_many({}, [
-        {'$set': {'gold': {'$add': ['$gold', '$gold_income']}}},
-        {'$set': {'prestige': {'$add': ['$prestige', '$prestige_income']}}},
-        {'$set': {'piety': {'$add': ['$piety', '$piety_income']}}},
-    ])
-    printp('Awarded income!')
+    ck.add_all_income()
+    prints('Awarded income!')
 
 
 # DM owner for errors and updates
@@ -204,9 +205,7 @@ def update_piety(uid: int, piety: int) -> None:
         piety_inc = 500
 
     if piety_inc != 0:
-        query = {'id': uid}
-        post = {'piety': piety_inc}
-        db_members.update_one(query, {'$inc': post})
+        ck.members[uid].increment_piety(piety_inc)
         printp('Modified piety by ' + str(piety_inc))
 
 
@@ -336,10 +335,6 @@ async def daily(ctx: discord.Interaction):
     target_difference = 60 * 60 * 4     # 4 hours
     diff_seconds = 24 * 60 * 60 * difference.days + difference.seconds
 
-    ###################################################################################
-    if ctx.user.id == 308437138855428117:
-        target_difference = 0
-
     if diff_seconds < target_difference:
         pretty_future = target_difference - diff_seconds
         pretty_hours = int(pretty_future / (60 * 60))
@@ -370,10 +365,8 @@ async def daily(ctx: discord.Interaction):
         await ctx.response.send_message(response, ephemeral=True)
         return
 
-    # Update database
-    post = {'id': m_id, 'last': str(now)}
-    db_daily.update_one(query, {'$set': post}, upsert=True)
-    db_members.update_one(query, {'$inc': {'prestige': 50}})
+    # Prestige reward
+    ck.members[m_id].increment_prestige(50)
 
     val = randint(1, 100)
     printp(f'Daily -> {ctx.user.name} got a {val}')
@@ -496,7 +489,7 @@ async def the_list(ctx: discord.Interaction, *, command: str):
 
 
 @bot.tree.command(name='ck', description='I do a little roleplaying. Try /ck help', guilds=guilds)
-async def ck(ctx: discord.Interaction, *, command: str):
+async def command_ck(ctx: discord.Interaction, *, command: str):
     async def usage(tip: str) -> None:
         await ctx.response.send_message(tip, ephemeral=True)
 
@@ -515,15 +508,12 @@ async def ck(ctx: discord.Interaction, *, command: str):
         
         name = args[1]
 
-        query = {'id': ctx.user.id}
-        result = list(db_members.find(query))
-
-        if len(result) == 0:
+        if ctx.user.id not in ck.members:
             # Create new member and add to database
-            member = ms.Member(ctx.user.id, name)
+            member = ck.Member({'uid': ctx.user.id, 'name': name})
             if connected_to_mongo:
                 try:
-                    db_members.insert_one(member.to_dict())
+                    ck.add_new_member(member)
                     await ctx.response.send_message(f'You are now registered as **{member.rank.name} {member.name}**!')
                 except pymongo.errors.OperationFailure:
                     logging.error("Something went wrong when trying to add member to database!")
@@ -537,16 +527,12 @@ async def ck(ctx: discord.Interaction, *, command: str):
 
         id = ctx.user.id if name == '' else int(name[2:len(name) - 1])
 
-        query = {'id': id}
-        result = list(db_members.find(query))
-
-        if len(result) == 0 and name == '':
+        if id not in ck.members and name == '':
             await ctx.response.send_message('You have not enrolled with /ck yet!\nYou can do so using `/ck enroll [NAME]`', ephemeral=True)
-        elif len(result) == 0:
+        elif id not in ck.members:
             await ctx.response.send_message('That user has not enrolled with /ck yet!', ephemeral=True)
         else:
-            member = ms.Member(result[0])
-            await ctx.response.send_message(member.print_format())
+            await ctx.response.send_message(ck.members[id].print_format())
     # Update user information
     elif subcommand == 'update':
         update_type = None if len(args) < 2 else args[1]
@@ -560,26 +546,20 @@ async def ck(ctx: discord.Interaction, *, command: str):
         if update_type == 'name':
             if len(args) < 3:
                 await usage('Usage: `/ck update name [NEW NAME]`')
-                return
-            
-            post = {'id': ctx.user.id, 'name': new_field}
-            db_members.update_one(query, {'$set': post})
+                return            
+            ck.members[ctx.user.id].name = new_field
             await ctx.response.send_message(f'Updated your name to {new_field}!')
         elif update_type == 'title':
             if len(args) < 3:
                 await usage('Usage: `/ck update title [NEW TITLE]`')
                 return
-            
-            post = {'id': ctx.user.id, 'title': new_field}
-            db_members.update_one(query, {'$set': post})
+            ck.members[ctx.user.id].title = new_field
             await ctx.response.send_message(f'Updated your title to {new_field}!')
         elif update_type == 'disposition':
             if len(args) < 3:
                 await usage('Usage: `/ck update disposition [NEW DISPOSITION]`')
                 return
-            
-            post = {'id': ctx.user.id, 'disposition': new_field}
-            db_members.update_one(query, {'$set': post})
+            ck.members[ctx.user.id].disposition = new_field            
             await ctx.response.send_message(f'Updated your disposition to {new_field}!')
         else:
             await usage('Usage: `/ck update [name|title|disposition] [NEW]`')
@@ -650,6 +630,53 @@ async def debug(ctx: discord.Interaction, *, command: str):
             await message.delete()
             await ctx.response.send_message('Removed config message!', ephemeral=True)
             printp('Removed config message from db_config!')
+    elif args[0] == 'add_roles':
+        if ctx.guild == None:
+            printe('ctx.guild is None!')
+            return
+        
+        role = ctx.guild.get_role(int(args[1][3:-1]))
+        if role == None:
+            printe('role is None!')
+            return
+        
+        members = ctx.guild.members
+        printp('im trying')
+        for m in members:
+            if not m.bot:
+                await m.add_roles(role)
+    elif args[0] == 'remove_roles':
+        if ctx.guild == None:
+            printe('ctx.guild is None!')
+            return
+        
+        role = ctx.guild.get_role(int(args[1][3:-1]))
+        if role == None:
+            printe('role is None!')
+            return
+        
+        members = ctx.guild.members
+        printp('im trying')
+        for m in members:
+            if not m.bot:
+                await m.remove_roles(role)
+    # elif args[0] == 'test':
+    #     if ctx.guild == None:
+    #         printe('bro')
+    #         return
+    #     roles = list(ctx.guild.roles)
+    #     for role in roles:
+    #         printp(role.name + ' ' + str(role.position))
+
+    #     positions = {
+    #         roles[2]: 4,
+    #         roles[4]: 2
+    #     }
+
+    #     print(bot.intents.guilds)
+    #     await ctx.guild.edit_role_positions(positions)
+
+    #     printp(roles)
     else:
         await usage('/debug config_message')
 
