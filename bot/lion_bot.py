@@ -477,9 +477,27 @@ async def the_list(ctx: discord.Interaction, *, command: str):
             await ctx.response.send_message(f'<@{uid}> was added to the list!', ephemeral=True)
         else:
             await ctx.response.send_message(f'<@{uid}> is already on the list!', ephemeral=True)
+    elif subcommand == 'remove':
+        uid = args[1][2:len(args[1]) - 1]
+        member = ctx.guild.get_member(int(uid))
+        list_role = ctx.guild.get_role(1216854346700951715)
 
+        if member == None:
+            printe('member is None!')
+            return
+        if list_role == None:
+            printe('list_role is None!')
+            return
+        
+        query = {'id': uid}
+        if len(list(db_list.find(query))) > 0:
+            db_list.delete_one(query)
+            await member.remove_roles(list_role)
+            await ctx.response.send_message(f'<@{uid}> was removed from the list!', ephemeral=True)
+        else:
+            await ctx.response.send_message(f'<@{uid}> was not on the list!', ephemeral=True)
     else:
-        await usage('Usage: `/list [help|add] ...`')
+        await usage('Usage: `/list [help|add|remove] ...`')
 
 
 @bot.tree.command(name='ck', description='I do a little roleplaying. Try /ck help', guilds=guilds)
