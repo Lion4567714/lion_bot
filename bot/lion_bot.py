@@ -302,7 +302,7 @@ The only rule is that <@1199041303221121025> is the Pope. Praise and revere him,
     await ctx.response.send_message(output, ephemeral=True)
 
 
-@bot.tree.command(name='daily', description='Gambling! 95+ is the winning score', guilds=guilds)
+@bot.tree.command(name='daily', description='Gambling! 100 is the winning score', guilds=guilds)
 async def daily(ctx: discord.Interaction): 
     # Ensure everything has gone right
     if ctx.guild is None:
@@ -313,12 +313,6 @@ async def daily(ctx: discord.Interaction):
         return
     
     m_id = ctx.user.id
-
-    # 10% chance yogert kicks himself
-    if m_id == 834559271277559819 and random() > 0.9:
-        member = ctx.guild.get_member(834559271277559819)
-        if member is not None:
-            await member.kick(reason='You won the lottery!')
 
     # Get the last /daily timestamp from the database
     query = {'id': ctx.user.id}
@@ -370,7 +364,7 @@ async def daily(ctx: discord.Interaction):
 
     val = randint(1, 100)
     printp(f'Daily -> {ctx.user.name} got a {val}')
-    if val >= 95:
+    if val >= 100:
         if ctx.guild is None:
             printe('none guild')
             return
