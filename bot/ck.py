@@ -1,10 +1,9 @@
 # TODO: Introduce "update" field to keep track of whether the database needs to be updated
 #       the next time something is accessed
 
-
+from main import *
 from enum import Enum
 from pymongo.collection import Collection
-from printing import *
 
 
 class ck:
@@ -181,11 +180,11 @@ class ck:
                     self.collection.replace_one({'uid': uid_loop}, self.members[uid_loop].to_dict(), upsert=True)
         except Exception as e:
             printe('error when trying to do a backup!', e, False)
+            printw(f'member dump:\n{self.members}')
 
 
     def add_new_member(self, member: Member) -> None:
         self.members[member.uid] = member
-        # TODO: Update database
 
 
     def add_all_income(self) -> None:

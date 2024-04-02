@@ -12,6 +12,8 @@
 
 
 ############### IMPORTS ###############
+from main import *
+
 # Discord
 import discord
 from discord.ext import commands, tasks
@@ -30,11 +32,6 @@ import signal
 import ast
 import datetime as dt
 from random import random, randint
-
-# Local
-from printing import *
-import message_processor as mp
-from ck import ck as ck_class
 #######################################
 
 
@@ -656,7 +653,6 @@ async def debug(ctx: discord.Interaction, *, command: str):
             return
         
         members = ctx.guild.members
-        printp('im trying')
         for m in members:
             if not m.bot:
                 await m.add_roles(role)
@@ -671,27 +667,36 @@ async def debug(ctx: discord.Interaction, *, command: str):
             return
         
         members = ctx.guild.members
-        printp('im trying')
         for m in members:
             if not m.bot:
                 await m.remove_roles(role)
-    # elif args[0] == 'test':
-    #     if ctx.guild == None:
-    #         printe('bro')
-    #         return
-    #     roles = list(ctx.guild.roles)
-    #     for role in roles:
-    #         printp(role.name + ' ' + str(role.position))
+    elif args[0] == 'prestige_roles':
+        if ctx.guild == None:
+            printe('ctx.guild is None!')
+            return
+        
+        roles = []
+        for r in ck.PRESTIGE_ROLES:
+            roles.append(ctx.guild.get_role(ck.PRESTIGE_ROLES[r]))
+        print(roles)
 
-    #     positions = {
-    #         roles[2]: 4,
-    #         roles[4]: 2
-    #     }
-
-    #     print(bot.intents.guilds)
-    #     await ctx.guild.edit_role_positions(positions)
-
-    #     printp(roles)
+        members = ctx.guild.members
+        for m in members:
+            if not m.bot:
+                role = 0
+                if m.id in ck.members:
+                    role = ck.members[m.id].prestige_level
+                await m.add_roles(roles[role])
+    elif args[0] == 'test':
+        uid = ctx.user.id
+        if ctx.guild == None:
+            printe('uh')
+            return
+        member = ctx.guild.get_member(uid)
+        if member == None:
+            printe('bro')
+            return
+        print(member.roles)
     else:
         await usage('/debug config_message')
 
