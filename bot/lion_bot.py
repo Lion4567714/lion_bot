@@ -362,6 +362,9 @@ async def daily(ctx: discord.Interaction):
     # Prestige reward
     ck.members[m_id].increment_prestige(50)
 
+    # Update database
+    db_daily.update_one(query, {'$set': {'last': dt.datetime.strftime(now, '%Y-%m-%d %H:%M:%S')}}, upsert=True)
+
     val = randint(1, 100)
     printp(f'Daily -> {ctx.user.name} got a {val}')
     if val >= 100:
