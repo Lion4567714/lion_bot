@@ -360,7 +360,17 @@ async def daily(ctx: discord.Interaction):
         return
 
     # Prestige reward
-    ck.members[m_id].increment_prestige(50)
+    level = ck.members[m_id].increment_prestige(50)
+    if level != None:
+        member = ctx.guild.get_member(m_id)
+        old_role = ctx.guild.get_role(level[0])
+        new_role = ctx.guild.get_role(level[1])
+        if member == None or old_role == None or new_role == None:
+            printe('member, old_role, or new_role is None!')
+        else:
+            await member.remove_roles(old_role)
+            await member.add_roles(new_role)
+            await ctx.channel.send(f'<@{m_id}> gained a level of fame!')
 
     # Update database
     db_daily.update_one(query, {'$set': {'last': dt.datetime.strftime(now, '%Y-%m-%d %H:%M:%S')}}, upsert=True)

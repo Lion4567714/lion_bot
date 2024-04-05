@@ -3,6 +3,7 @@
 
 from main import *
 from enum import Enum
+from typing import Union
 from pymongo.collection import Collection
 
 
@@ -69,13 +70,16 @@ class ck:
             self.gold = round(self.gold + amount)
 
 
-        def increment_prestige(self, amount: float) -> None:
+        def increment_prestige(self, amount: float) -> Union[tuple[int, int], None]:
             new_amount = round(self.prestige + amount, 1)
             before = self.to_level(self.prestige)
             after = self.to_level(new_amount)
+            self.prestige = new_amount
             if before != after:
                 self.prestige_level = after
-            self.prestige = new_amount
+                return (ck.PRESTIGE_ROLES[before], ck.PRESTIGE_ROLES[after])
+            else:
+                return None
 
 
         def increment_piety(self, amount: float) -> None:
