@@ -595,7 +595,6 @@ async def debug(ctx: discord.Interaction, *, command: str):
         return
 
     args = command.split(' ')
-    printp(args)
     if args[0] == 'config_message':
         # "Config messages" are messages you react to that serve some purpose, like granting roles
         # The terminology is completely made up. I have no idea what they're actually called lol
@@ -690,6 +689,9 @@ async def debug(ctx: discord.Interaction, *, command: str):
                 if m.id in ck.members:
                     role = ck.members[m.id].prestige_level
                 await m.add_roles(roles[role])
+    elif args[0] == 'backup':
+        ck.backup()
+        await ctx.response.send_message('Back up complete!', ephemeral=True)
     elif args[0] == 'test':
         uid = ctx.user.id
         if ctx.guild == None:
