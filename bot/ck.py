@@ -82,13 +82,14 @@ class ck:
                 return None
 
 
-        def increment_piety(self, amount: float) -> None:
+        def increment_piety(self, amount: float) -> float:
             new_amount = round(self.piety + amount, 1)
             before = self.to_level(self.piety)
             after = self.to_level(new_amount)
             if before != after:
                 self.piety_level = after
             self.piety = new_amount
+            return self.piety
 
 
         def add_income(self) -> None:
@@ -167,10 +168,13 @@ class ck:
 
     def __init__(self, collection: Collection) -> None:
         self.collection = collection
+        self.restore()
 
+
+    def restore(self) -> None:
         self.members = {}
         member_collection: list[dict]
-        member_collection = list(collection.find({}))
+        member_collection = list(self.collection.find({}))
         for m in member_collection:
             self.members[m['uid']] = ck.Member(m)
 

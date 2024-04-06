@@ -52,3 +52,11 @@ def printl(message) -> None:
     Print log (or print lame) with dimmed coloration
     """
     __printc__(message, Fore.LIGHTBLACK_EX)
+
+
+def printd(message) -> None:
+    """
+    Print debug with cyan coloration and prepended with [DEBUG]
+    """
+    message = f'[DEBUG] {inspect.stack()[1].function}(): {message}'
+    __printc__(message, Fore.CYAN)

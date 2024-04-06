@@ -7,7 +7,6 @@
 # TODO: Spend prestige to slander others
 # TODO: Higher prestige rank (army size) determines insult quality
 # TODO: Spend gold to build buildings
-# TODO: Rank determines how high you are on the right
 # TODO: Lower piety = whiter color
 
 
@@ -32,6 +31,7 @@ import signal
 import ast
 import datetime as dt
 from random import random, randint
+from typing import Union
 #######################################
 
 
@@ -49,7 +49,6 @@ except Exception as e:
 
 # Discord Client
 intents = discord.Intents.all()
-intents.guilds = True
 bot = commands.Bot(command_prefix='/', intents=intents)
 
 # Logging
@@ -96,9 +95,9 @@ except Exception as e:
 db = mongo_client.my_database
 db_config = db['config']
 db_posts = db['posts']
-# db_members = db['members']
 db_daily = db['daily']
 db_list = db['the list']
+db_roles = db['roles']
 
 ck = ck_class(db['members'])
 #######################################
@@ -185,11 +184,16 @@ async def on_message(message: discord.Message):
         await message.add_reaction(response.emoji)
         
     piety = response.piety
-    if piety >= 0:
-        update_piety(message.author.id, piety)    
+    if message.guild != None:
+        res = await update_piety(message.author.id, message.guild, piety)
+        if res != None:
+            if res[0]:
+                await message.channel.send(f'Those who call themselves <@&{res[1]}> have been banished to the shadow realm for their lack of faith. Burn in hell.')
+            else:
+                await message.channel.send(f'Those who call themselves <@&{res[1]}> have found salvation from the shadow realm.')
 
 
-def update_piety(uid: int, piety: int) -> None:
+async def update_piety(uid: int, guild: discord.Guild, piety: int) -> Union[tuple[bool, int], None]:
     piety_inc = 0
     if piety == 0:
         piety_inc = -500
@@ -205,8 +209,27 @@ def update_piety(uid: int, piety: int) -> None:
         piety_inc = 500
 
     if piety_inc != 0:
-        ck.members[uid].increment_piety(piety_inc)
+        new_piety = ck.members[uid].increment_piety(piety_inc)
         printp('Modified piety by ' + str(piety_inc))
+
+        member = guild.get_member(uid)
+        if member == None:
+            return None
+        role = member.roles[-1]
+
+        if new_piety < 0:
+            if not db_roles.find_one({'rid': role.id}):
+                db_roles.insert_one({'rid': role.id, 'color': role.color.value})
+                await role.edit(color=discord.Color(0x313338))
+                return (True, role.id)
+        else:
+            old = db_roles.find_one({'rid': role.id})
+            if old:
+                db_roles.delete_one({'rid': role.id})
+                await role.edit(color=discord.Color(old['color']))
+                return (False, role.id)
+        
+    return None
 
 
 @bot.event
@@ -519,12 +542,11 @@ async def command_ck(ctx: discord.Interaction, *, command: str):
         await ctx.response.send_message(tip, ephemeral=True)
 
     args = command.split(' ')
-    if len(args) == 0:
-        await usage('Usage: `/ck [help|enroll|stats|update]`')
-        return
-    
     subcommand = args[0]
+    if len(args) == 0:
+        subcommand = ''
 
+    ### /ck enroll
     # Enroll user in Crusader Kings roleplay
     if subcommand == 'enroll':
         if len(args) != 2:
@@ -544,6 +566,8 @@ async def command_ck(ctx: discord.Interaction, *, command: str):
                     logging.error("Something went wrong when trying to add member to database!")
         else:
             await ctx.response.send_message(f'You already enrolled!', ephemeral=True)
+
+    ### /ck stats
     # View stats of given player, self if no name provided
     elif subcommand == 'stats':
         name = ''
@@ -558,6 +582,8 @@ async def command_ck(ctx: discord.Interaction, *, command: str):
             await ctx.response.send_message('That user has not enrolled with /ck yet!', ephemeral=True)
         else:
             await ctx.response.send_message(ck.members[id].print_format())
+
+    ### /ck update        
     # Update user information
     elif subcommand == 'update':
         update_type = None if len(args) < 2 else args[1]
@@ -588,6 +614,12 @@ async def command_ck(ctx: discord.Interaction, *, command: str):
             await ctx.response.send_message(f'Updated your disposition to {new_field}!')
         else:
             await usage('Usage: `/ck update [name|title|disposition] [NEW]`')
+
+    ### /ck buy
+    # Show purchasable items and buy them
+    # elif subcommand == ''
+
+    ### /ck USAGE
     # Print command usage
     else:
         await usage('Usage: `/ck [help|enroll|stats|update]`')
@@ -599,11 +631,11 @@ async def debug(ctx: discord.Interaction, *, command: str):
         await ctx.response.send_message('Usage: `' + usage_info + '`', ephemeral=True)
 
     # Only the bot owner is allowed to use this command
-    if ctx.user.id != 307723444428996608:
+    if not await bot.is_owner(ctx.user):
         await ctx.response.send_message('You are not permitted to use this command!', ephemeral=True)
         printw(f'{ctx.user.name} just tried to use /debug')
         return
-
+    
     args = command.split(' ')
     if args[0] == 'config_message':
         # "Config messages" are messages you react to that serve some purpose, like granting roles
@@ -699,6 +731,9 @@ async def debug(ctx: discord.Interaction, *, command: str):
                 if m.id in ck.members:
                     role = ck.members[m.id].prestige_level
                 await m.add_roles(roles[role])
+    elif args[0] == 'restore':
+        ck.restore()
+        await ctx.response.send_message('Restoration complete!', ephemeral=True)
     elif args[0] == 'backup':
         ck.backup()
         await ctx.response.send_message('Back up complete!', ephemeral=True)
@@ -793,21 +828,10 @@ async def disconnect(ctx: discord.Interaction, member: discord.Member):
     # print(ctx.author)
     printp(ctx.user.name + " used disconnect")
 
-    if ctx.message != None:
-        printp('it worked')
-        printp(ctx.message)
-        printp(ctx.message.author)
-        printp(ctx.message.author.id)
-    
-
-    printp(member.id)
-    # brown id = 308437138855428117
-    # lion id = 307723444428996608
-
     voice_state = member.voice
 
     if voice_state is None:
-        return await ctx.response.send_message('Hey dumbass, the target has to be in voice to get disconnected.\nTry thinking a little bit before using random commands, okay?')
+        return await ctx.response.send_message('Hey dumbass, that person has to be in voice to get disconnected.\nTry thinking a little bit before using my commands.')
 
     await member.move_to(None)
     await ctx.response.send_message("done!", ephemeral=True)

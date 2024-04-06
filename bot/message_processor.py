@@ -197,7 +197,7 @@ Make sure the file exists and contains properly formatted emojis.
         printp('Message is related to lion bot!')
 
         # Submit the message to OpenAI for judgement
-        preamble = 'Pretend you are a God named "Lion Bot". Rate the following message with a grade of how "pious" the message is on a scale of 1 to 10. 1 being sinner and 10 being devout. Respond with only a number: '
+        preamble = 'Pretend you are a God named "Lion Bot". Rate the following message with a grade of how "pious" the message is on a scale of 0 to 9. 0 being sinner and 9 being devout. Respond with only a number: '
         if self.ai_client == None:
             printe('ai_client is None!')
             return -1
@@ -217,7 +217,7 @@ Make sure the file exists and contains properly formatted emojis.
             printw('Invalid response from OpenAI: ' + response)
         response_int = -1
         try:
-            response_int = int(response) - 1
+            response_int = int(response)
         except Exception as e:
             printe('Invalid response from OpenAI: ' + response, e, False)
 
