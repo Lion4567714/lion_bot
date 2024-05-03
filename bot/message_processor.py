@@ -120,9 +120,9 @@ Make sure the file exists and contains properly formatted emojis.
     async def get_response(self, message: discord.Message) -> Response:
         piety = await self.get_piety(message)
         if piety != -1:
-            if piety < 2:
+            if piety <= 2:
                 return Reaction(':sinner:1217240690250223726', piety)
-            elif piety > 7:
+            elif piety >= 7:
                 return Reaction(':religiousicon:1217240684453564447', piety)
 
         content = str(message.__getattribute__('content'))

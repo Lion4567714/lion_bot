@@ -617,7 +617,19 @@ async def command_ck(ctx: discord.Interaction, *, command: str):
 
     ### /ck buy
     # Show purchasable items and buy them
-    # elif subcommand == ''
+    elif subcommand == 'buy':
+        # Check each subsubcommand, make sure the user is not buying anything
+        if args[1] != '':
+            # Purchase or whatever
+            printd('things are being purchased...')
+        else:
+            printd('i should print the buy menu...')
+            shop = \
+"""
+**/ck Shop**
+
+"""
+
 
     ### /ck USAGE
     # Print command usage
