@@ -4,37 +4,8 @@ import datetime as dt
 import pytz
 import random
 from openai import OpenAI
-
-
-########### RESPONSE TYPES ############
-class Response: 
-    piety: int
-
-
-class Silent(Response):
-    pass
-
-
-class Message(Response):
-    content: str
-
-    def __init__(self, content: str, piety: int = -1):
-        self.content = content
-        self.piety = piety
-
-
-class Reply(Message): 
-    pass
-
-
-class Reaction(Response):
-    emoji: str
-
-    def __init__(self, emoji: str, piety: int = -1):
-        self.emoji = emoji
-        self.piety = piety
-#######################################
-
+from response import *
+from printing import *
 
 tracked = [
     'author.global_name',
@@ -71,9 +42,8 @@ responses = {
     'misty taste of moonshine': 'teardrop in my eye...',
 }
 
-
 class MessageProcessor:
-    history = [None] * 10
+    history = [''] * 10
     activity = {}
     emojis = {}
     ai_client = None
@@ -98,8 +68,7 @@ class MessageProcessor:
                 self.emojis[line[first:second]] = line
             file.close()
         except Exception as e:
-            print("""
-[ERROR]
+            printe("""
 Something went wrong when trying to read ./bot/messaging/emojis!
 Make sure the file exists and contains properly formatted emojis.
                   """)
@@ -107,9 +76,9 @@ Make sure the file exists and contains properly formatted emojis.
 
 
     async def process_message(self, message: discord.Message, debug_level: int = 0) -> Response:
-        message_dict = self.message_to_dict(message)
-        self.print_message(message_dict, debug_level)
-        response = await self.get_response(message)
+        message_dict = self.message_to_dict(message)    # Convert discord.Message to dict
+        self.print_message(message_dict, debug_level)   # Use message dict to print a detailed log
+        response = await self.get_response(message)     # Get response using full discord.Message information
         return response
 
 
@@ -124,7 +93,7 @@ Make sure the file exists and contains properly formatted emojis.
                 except Exception as e:
                     attr = None
                     if subfield != 'nick' and subfield != 'name' and subfield != 'id':
-                        print(f'{subfield} could not be found in this message!')
+                        printw(f'{subfield} could not be found in this message!')
             output[field] = attr
         return output
 
@@ -144,19 +113,19 @@ Make sure the file exists and contains properly formatted emojis.
         if debug_level == 0:
             pass
         elif debug_level == 1:
-            print(f"[{d.strftime(time_format)}]: {name} said \"{message['content']}\" " + 
+            printl(f"[{d.strftime(time_format)}]: {name} said \"{message['content']}\" " + 
                 f"in {message['channel.name']}, {message['guild.name']}")
         
 
     async def get_response(self, message: discord.Message) -> Response:
-        content = str(message.__getattribute__('content'))
-
         piety = await self.get_piety(message)
-        if piety < 2 and piety != -1:
-            return Reaction(':piety_0:1217240690250223726', piety)
-        elif piety > 7:
-            return Reaction(':piety_5:1217240684453564447', piety)
+        if piety != -1:
+            if piety <= 2:
+                return Reaction(':sinner:1217240690250223726', piety)
+            elif piety >= 7:
+                return Reaction(':religiousicon:1217240684453564447', piety)
 
+        content = str(message.__getattribute__('content'))
         clean_message = content.lower()
         punc = ['.', ',']       
         for p in punc:
@@ -165,7 +134,7 @@ Make sure the file exists and contains properly formatted emojis.
         # Add to and check history for repeated messages
         is_same = True
         for i in range(len(self.history) - 1):
-            if self.history[i] != content:
+            if self.history[i] == '' or self.history[i] != content:
                 is_same = False
 
             self.history[i] = self.history[i + 1]
@@ -173,7 +142,7 @@ Make sure the file exists and contains properly formatted emojis.
         self.history[len(self.history) - 1] = content
 
         if is_same:
-            self.history = [] * 10
+            self.history = [''] * 10
             return Message('https://tenor.com/view/shrek-stop-talking-five-minutes-be-yourself-please-gif-13730564')
         # End history things
 
@@ -210,7 +179,13 @@ Make sure the file exists and contains properly formatted emojis.
             is_related = True
             content.replace('<@1199041303221121025>', 'lion bot')
         if message.type == discord.MessageType.reply:
+            if message.reference == None:
+                printe('message.reference is None!')
+                return -1
             m_id = message.reference.message_id
+            if m_id == None:
+                printe('m_id is None!')
+                return -1
             ref = await message.channel.fetch_message(m_id)
             if ref.author.id == 1199041303221121025:
                 is_related = True
@@ -219,10 +194,13 @@ Make sure the file exists and contains properly formatted emojis.
         if not is_related:
             return -1
         
-        print('Message is related to lion bot!')
+        printp('Message is related to lion bot!')
 
         # Submit the message to OpenAI for judgement
-        preamble = 'Pretend you are a god named "Lion Bot". Rate the following message with a grade of how "pious" the message is on a scale of 0-9. 0 being sinner and 9 being devout. Respond with only a number: '
+        preamble = 'Pretend you are a God named "Lion Bot". Rate the following message with a grade of how "pious" the message is on a scale of 0 to 9. 0 being sinner and 9 being devout. Respond with only a number: '
+        if self.ai_client == None:
+            printe('ai_client is None!')
+            return -1
         completion = self.ai_client.chat.completions.create(
             messages = [{
                 'role': 'user',
@@ -233,14 +211,15 @@ Make sure the file exists and contains properly formatted emojis.
         response = completion.choices[0].message.content
 
         # Ensure the quality of the response
-        if len(response) > 1:
-            print('Invalid response from OpenAI: ' + response)
+        if response == None:
+            return -1
+        if len(response) > 1 or not response.isnumeric():
+            printw('Invalid response from OpenAI: ' + response)
         response_int = -1
         try:
             response_int = int(response)
         except Exception as e:
-            print('Invalid response from OpenAI: ' + response)
-            print(e)
+            printe('Invalid response from OpenAI: ' + response, e, False)
 
-        print('Piety: ' + str(response_int))
+        printp('Piety: ' + str(response_int))
         return response_int
