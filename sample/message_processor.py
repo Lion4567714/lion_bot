@@ -61,7 +61,7 @@ class MessageProcessor:
 
     def read_responses(self) -> None:
         try:
-            file = open('./bot/messaging/emojis', 'r')
+            file = open('./sample/messaging/emojis', 'r')
             for line in file.read().splitlines():
                 first = line.find(':') + 1
                 second = line.find(':', first + 1)
@@ -69,7 +69,7 @@ class MessageProcessor:
             file.close()
         except Exception as e:
             printe("""
-Something went wrong when trying to read ./bot/messaging/emojis!
+Something went wrong when trying to read ./sample/messaging/emojis!
 Make sure the file exists and contains properly formatted emojis.
                   """)
             sys.exit()

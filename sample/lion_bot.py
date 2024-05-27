@@ -39,7 +39,7 @@ from typing import Union
 mp_instance = mp.MessageProcessor()
 try:
     # Activity log
-    path = './bot/messaging/activity'
+    path = './logs/activity.log'
     file = open(path, 'r')
     mp_instance.activity = ast.literal_eval(file.read())
     file.close()
@@ -52,7 +52,7 @@ intents = discord.Intents.all()
 bot = commands.Bot(command_prefix='/', intents=intents)
 
 # Logging
-handler = logging.FileHandler(filename='./logs/lion_bot.log', encoding='utf-8', mode='w')
+handler = logging.FileHandler(filename='./logs/bot.log', encoding='utf-8', mode='w')
 
 # Guilds
 guild_ids = ''
@@ -105,7 +105,7 @@ ck = ck_class(db['members'])
 
 ############## SIGNALS ################
 def signal_handler(sig, frame):
-    path = './bot/messaging/activity'
+    path = './logs/activity.log'
     try:
         # Save ck stuff
         ck.backup()
